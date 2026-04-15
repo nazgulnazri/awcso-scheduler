@@ -537,21 +537,14 @@ function setSyncStatus(s){
 // Add admin emails or Firebase UIDs here. Everyone else is automatically a dancer.
 const ADMIN_WHITELIST=[
   // emails
-  'awcso.admin@gmail.com',
-  // add more admin emails below:
-  // 'another.admin@email.com',
+  'arklvl100@gmail.com',
+  'celestialgal86@gmail.com',
 ];
 const ADMIN_UID_WHITELIST=[
   // Firebase UIDs (find in Firebase Console → Authentication)
-  // 'abc123firebaseUID',
+   'hMENqE7wDBUNBjRk27lDKVgOVoU2',
+   'l2dXwAkOEba7fn54u5zxrjT9nio2',
 ];
-
-function resolveRole(email,uid){
-  const e=(email||'').toLowerCase().trim();
-  if(ADMIN_WHITELIST.some(a=>a.toLowerCase()===e))return'admin';
-  if(ADMIN_UID_WHITELIST.includes(uid))return'admin';
-  return'dancer';
-}
 
 // ── LOGIN FLOW ────────────────────────────────────────────────────────────────
 function skipLogin(){
