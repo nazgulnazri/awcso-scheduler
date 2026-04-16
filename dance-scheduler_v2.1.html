@@ -1,0 +1,2203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>AWCSO 2026 — Video Scheduler</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://accounts.google.com/gsi/client" async></script>
+<style>
+:root{
+  --bg:#0e0f11;--surface:#16181c;--surface2:#1e2128;--surface3:#22252e;
+  --border:#2a2d35;--border2:#363a45;
+  --text:#e8eaf0;--text2:#8b8f9e;--text3:#565a6a;
+  --accent:#c8f06e;--accent2:#8fd44a;
+  --red:#f06e6e;--teal:#6ec8c8;--amber:#f0c46e;--purple:#a46ef0;--blue:#6ea8f0;
+  --r:8px;--rl:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.6;min-height:100vh}
+.app{max-width:560px;margin:0 auto;padding:0 0 80px}
+
+/* ── Modals ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:200;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px)}
+.modal-overlay.hidden{display:none}
+.modal{background:var(--surface);border:0.5px solid var(--border2);border-radius:16px;padding:26px 22px;width:340px;text-align:center;max-height:90vh;overflow-y:auto}
+.modal h2{font-size:16px;font-weight:500;margin-bottom:4px}
+.modal p{font-size:12px;color:var(--text3);margin-bottom:18px}
+.modal-step{display:none}.modal-step.active{display:block}
+.modal-skip{font-size:12px;color:var(--text3);cursor:pointer;margin-top:10px;display:inline-block;transition:color 0.15s}
+.modal-skip:hover{color:var(--text2)}
+
+/* Role cards */
+.role-picker{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.role-card{border:0.5px solid var(--border2);border-radius:var(--rl);padding:14px 10px;cursor:pointer;transition:all 0.15s;background:var(--surface2)}
+.role-card:hover{border-color:rgba(200,240,110,0.5);background:rgba(200,240,110,0.04)}
+.role-card.selected{border-color:var(--accent);background:rgba(200,240,110,0.08)}
+.role-card-icon{font-size:22px;margin-bottom:5px}
+.role-card-title{font-size:13px;font-weight:500}
+.role-card-sub{font-size:11px;color:var(--text3);margin-top:2px;line-height:1.4}
+
+/* Auth buttons */
+.auth-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:10px 14px;border-radius:var(--r);border:0.5px solid var(--border2);background:var(--surface2);color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;margin-bottom:8px;transition:background 0.15s}
+.auth-btn:hover{background:var(--surface3)}
+.auth-divider{display:flex;align-items:center;gap:8px;margin:10px 0;color:var(--text3);font-size:11px}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:0.5px;background:var(--border2)}
+.auth-err{font-size:12px;color:var(--red);margin-bottom:8px;display:none}
+.auth-err.show{display:block}
+.back-link{font-size:12px;color:var(--text3);cursor:pointer;margin-top:8px;display:inline-block}
+.back-link:hover{color:var(--text2)}
+
+/* Dancer profile popup */
+.popup-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.popup-overlay.hidden{display:none}
+.popup{background:var(--surface);border:0.5px solid var(--border2);border-radius:16px;width:360px;max-height:85vh;overflow-y:auto}
+.popup-head{display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:0.5px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:1}
+.popup-avatar{width:40px;height:40px;border-radius:50%;background:rgba(200,240,110,0.1);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500;color:var(--accent);font-family:'DM Mono',monospace;flex-shrink:0}
+.popup-title{flex:1;min-width:0}
+.popup-name{font-size:15px;font-weight:500}
+.popup-bib{font-size:12px;color:var(--text3);font-family:'DM Mono',monospace}
+.popup-close{border:none;background:transparent;color:var(--text3);cursor:pointer;font-size:20px;line-height:1;padding:4px}
+.popup-close:hover{color:var(--text)}
+.popup-body{padding:16px 18px}
+.popup-section{font-size:10px;font-family:'DM Mono',monospace;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;margin-top:14px}
+.popup-section:first-child{margin-top:0}
+.popup-comp-row{background:var(--surface2);border:0.5px solid var(--border);border-radius:var(--r);padding:10px 12px;margin-bottom:6px}
+.popup-assign-row{display:flex;justify-content:space-between;align-items:flex-start;padding:7px 0;border-bottom:0.5px solid var(--border);gap:8px}
+.popup-assign-row:last-child{border-bottom:none}
+.popup-empty{font-size:12px;color:var(--text3);padding:8px 0}
+
+/* Sync */
+.sync-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--text3);margin-right:4px;vertical-align:middle}
+.sync-dot.syncing{background:var(--amber);animation:pulse 1s infinite}
+.sync-dot.synced{background:var(--accent)}
+.sync-dot.error{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+
+/* Topbar */
+.topbar{padding:12px 16px 0;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.topbar-left h1{font-size:15px;font-weight:500;color:var(--text)}
+.topbar-left p{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace}
+.accent-dot{display:inline-block;width:7px;height:7px;background:var(--accent);border-radius:50%;margin-right:6px;vertical-align:middle}
+.user-chip{display:flex;align-items:center;gap:6px;background:var(--surface2);border:0.5px solid var(--border);border-radius:20px;padding:3px 10px 3px 3px;font-size:11px;cursor:pointer;flex-shrink:0;max-width:160px}
+.user-chip img{width:20px;height:20px;border-radius:50%;object-fit:cover;flex-shrink:0}
+.user-chip-av{width:20px;height:20px;border-radius:50%;background:rgba(200,240,110,0.15);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:500;color:var(--accent);flex-shrink:0}
+.user-chip-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.role-badge{font-size:9px;font-family:'DM Mono',monospace;padding:1px 5px;border-radius:3px;font-weight:500;flex-shrink:0}
+.role-badge.admin{background:rgba(200,240,110,0.15);color:var(--accent)}
+.role-badge.dancer{background:rgba(110,168,240,0.15);color:var(--blue)}
+
+/* Search */
+.search-wrap{padding:10px 16px 0;position:relative}
+.search-wrap input{width:100%;background:var(--surface);border:0.5px solid var(--border2);border-radius:20px;padding:8px 14px 8px 34px;font-size:13px;color:var(--text);outline:none;transition:border-color 0.15s}
+.search-wrap input:focus{border-color:var(--accent)}
+.search-wrap input::placeholder{color:var(--text3)}
+.search-icon{position:absolute;left:27px;top:19px;color:var(--text3);font-size:13px;pointer-events:none}
+
+/* Nav */
+.nav{display:flex;padding:10px 16px 0;border-bottom:0.5px solid var(--border)}
+.nav-tab{flex:1;text-align:center;padding:7px 2px;font-size:12px;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s;background:none;border-top:none;border-left:none;border-right:none;font-family:'DM Sans',sans-serif;white-space:nowrap}
+.nav-tab:hover{color:var(--text2)}
+.nav-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* ── Interactive drag-follow swipe ── */
+#swipe-container{
+  overflow:hidden;
+  /* height is set dynamically by JS to tallest visible panel */
+}
+/* The inner track holds ALL panels side by side */
+#swipe-track{
+  display:flex;
+  width:400%; /* 4 panels × 100% */
+  will-change:transform;
+  transition:none; /* JS controls this */
+  align-items:flex-start;
+}
+/* Each panel slot takes exactly 25% of the track = 100% viewport */
+.panel{
+  flex:0 0 25%;
+  width:25%;
+  padding:14px 16px;
+  box-sizing:border-box;
+  /* always rendered — visibility controlled by track position */
+}
+/* home panel is outside the track, handled separately */
+#panel-home{padding:14px 16px}
+.panel.active,#panel-home.active{display:block}
+
+/* Form */
+.form-row{margin-bottom:10px}
+.form-row label{font-size:11px;color:var(--text3);display:block;margin-bottom:4px;font-family:'DM Mono',monospace;letter-spacing:0.3px}
+.form-row input,.form-row select{width:100%;background:var(--surface2);border:0.5px solid var(--border2);border-radius:var(--r);padding:8px 10px;font-size:13px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;transition:border-color 0.15s}
+.form-row input:focus,.form-row select:focus{border-color:var(--accent)}
+.form-row input::placeholder{color:var(--text3)}
+select option{background:var(--surface2)}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+
+/* Comp block */
+.comp-block{background:var(--surface2);border:0.5px solid var(--border);border-radius:var(--r);padding:12px;margin-bottom:10px}
+.comp-block-title{font-size:11px;font-family:'DM Mono',monospace;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.comp-flags{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.comp-flag-label{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.comp-flag-label span{color:var(--accent)}
+
+/* Buttons */
+.btn-full{width:100%;padding:10px;background:var(--accent);color:#0e0f11;border:none;border-radius:var(--r);font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;transition:background 0.15s;margin-top:4px}
+.btn-full:hover{background:var(--accent2)}
+.btn-full:disabled{opacity:0.4;cursor:not-allowed}
+.btn-full.generate{border-radius:var(--rl);font-size:14px;padding:12px;margin-top:0;margin-bottom:12px}
+.btn-full.export{background:transparent;border:0.5px solid rgba(110,200,200,0.4);color:var(--teal);margin-top:0}
+.btn-full.export:hover{background:rgba(110,200,200,0.06)}
+.btn-sm-accent{background:rgba(200,240,110,0.1);border:0.5px solid rgba(200,240,110,0.3);color:var(--accent);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:background 0.15s}
+.btn-sm-accent:hover{background:rgba(200,240,110,0.18)}
+.btn-icon{border:none;background:transparent;color:var(--text3);cursor:pointer;padding:4px 5px;border-radius:4px;font-size:14px;line-height:1;transition:color 0.15s}
+.btn-icon:hover{color:var(--text)}
+.btn-icon.edit:hover{color:var(--teal)}
+.btn-icon.del:hover{color:var(--red)}
+
+/* Clickable name link */
+.name-link{cursor:pointer;color:inherit;text-decoration:none;border-bottom:0.5px dashed var(--border2);transition:border-color 0.15s}
+.name-link:hover{border-bottom-color:var(--accent);color:var(--accent)}
+
+/* Badges */
+.badge{display:inline-block;font-size:10px;font-family:'DM Mono',monospace;padding:1px 6px;border-radius:4px;font-weight:500;letter-spacing:0.2px}
+.b-fri{background:rgba(110,200,200,0.15);color:var(--teal)}
+.b-sat{background:rgba(200,240,110,0.15);color:var(--accent)}
+.b-sun{background:rgba(240,196,110,0.15);color:var(--amber)}
+.b-div{background:rgba(164,110,240,0.15);color:var(--purple)}
+.b-cross{background:rgba(110,200,200,0.12);color:var(--teal)}
+.b-lead{background:rgba(110,168,240,0.15);color:var(--blue)}
+.b-foll{background:rgba(240,110,110,0.12);color:var(--red)}
+
+/* Dancer list */
+.dancer-item{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r);margin-bottom:8px;overflow:hidden}
+.dancer-head{display:flex;align-items:center;gap:10px;padding:10px 12px}
+.dancer-avatar{width:28px;height:28px;border-radius:50%;background:rgba(200,240,110,0.1);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:var(--accent);font-family:'DM Mono',monospace;flex-shrink:0}
+.dancer-info{flex:1;min-width:0}
+.dancer-name{font-size:13px;font-weight:500}
+.dancer-sub{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:1px}
+.dancer-actions{display:flex;gap:2px;flex-shrink:0}
+.dancer-comps{padding:0 12px 10px}
+.comp-pill{display:inline-flex;align-items:center;gap:4px;background:var(--surface2);border:0.5px solid var(--border);border-radius:20px;padding:2px 8px;font-size:10px;margin:2px;font-family:'DM Mono',monospace}
+.edit-wrap{padding:12px;border-top:0.5px solid var(--border);background:rgba(200,240,110,0.02)}
+.edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.edit-grid input,.edit-grid select,.edit-wrap select,.edit-wrap input{background:var(--surface2);border:0.5px solid var(--border2);border-radius:6px;padding:6px 8px;font-size:12px;color:var(--text);outline:none;width:100%;font-family:'DM Sans',sans-serif}
+.edit-comp-block{background:var(--surface3);border:0.5px solid var(--border);border-radius:var(--r);padding:10px;margin-top:8px}
+.edit-actions{display:flex;gap:6px;margin-top:10px}
+.edit-actions button{flex:1;padding:7px;font-size:12px;border-radius:6px;cursor:pointer;font-family:'DM Sans',sans-serif;border:0.5px solid var(--border2);background:transparent;color:var(--text2);transition:all 0.15s}
+.edit-actions .save-btn{background:var(--accent);color:#0e0f11;border-color:var(--accent);font-weight:500}
+.edit-actions .save-btn:hover{background:var(--accent2)}
+
+/* Schedule */
+.sched-day{margin-bottom:18px}
+.sched-day-label{font-size:11px;font-family:'DM Mono',monospace;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.sched-div-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r);margin-bottom:6px;overflow:hidden}
+.sched-div-head{display:flex;align-items:center;justify-content:space-between;padding:9px 12px}
+.sched-div-name{font-size:12px;font-weight:500}
+.sched-div-cfg{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.sched-div-cfg input{width:46px;text-align:center;background:var(--surface2);border:0.5px solid var(--border2);border-radius:6px;padding:4px;font-size:12px;color:var(--text);outline:none}
+.sched-div-cfg input:disabled{opacity:0.4;cursor:not-allowed}
+.sched-div-cfg span{font-size:11px;color:var(--text3)}
+.sched-rounds{border-top:0.5px solid var(--border)}
+.sched-round-row{display:flex;align-items:center;justify-content:space-between;padding:5px 12px;border-bottom:0.5px solid var(--border)}
+.sched-round-row:last-child{border-bottom:none}
+.sched-round-name{font-size:11px;color:var(--text2)}
+.sched-round-time{font-size:11px;font-family:'DM Mono',monospace;color:var(--text3)}
+.sched-round-marshal{font-size:10px;font-family:'DM Mono',monospace;color:var(--amber)}
+
+/* Assignments — single column layout */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.stat{background:var(--surface2);border:0.5px solid var(--border);border-radius:var(--r);padding:10px}
+.stat-val{font-size:18px;font-weight:500;color:var(--text);font-family:'DM Mono',monospace}
+.stat-val.green{color:var(--accent)}.stat-val.teal{color:var(--teal)}.stat-val.red{color:var(--red)}
+.stat-lbl{font-size:10px;color:var(--text3);margin-top:1px}
+.recorder-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--rl);margin-bottom:10px;overflow:hidden}
+.recorder-head{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:0.5px solid var(--border)}
+.r-avatar{width:28px;height:28px;border-radius:50%;background:rgba(200,240,110,0.1);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:var(--accent);font-family:'DM Mono',monospace;flex-shrink:0}
+.r-name{font-weight:500;font-size:13px}
+.r-meta{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace}
+.assign-row{padding:9px 14px;border-bottom:0.5px solid var(--border)}
+.assign-row:last-child{border-bottom:none}
+.assign-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.assign-for{font-size:13px;font-weight:500}
+.assign-bib{font-size:11px;font-family:'DM Mono',monospace;color:var(--text3)}
+.assign-time{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;white-space:nowrap}
+.assign-badges{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
+.assign-note{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:3px}
+
+/* Unassigned card — collapsible, full width above recorder list */
+.ua-card{background:var(--surface);border:0.5px solid rgba(240,110,110,0.3);border-radius:var(--rl);overflow:hidden;margin-bottom:14px;position:relative}
+.ua-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:0.5px solid var(--border);background:rgba(240,110,110,0.06)}
+.ua-head-left{flex:1}
+.ua-title{font-size:12px;font-weight:500;color:var(--red)}
+.ua-sub{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:2px}
+.ua-expand-btn{font-size:11px;font-family:'DM Mono',monospace;color:var(--text3);background:transparent;border:0.5px solid var(--border2);border-radius:6px;padding:4px 10px;cursor:pointer;white-space:nowrap;transition:color 0.15s,border-color 0.15s;flex-shrink:0}
+.ua-expand-btn:hover{color:var(--text);border-color:var(--border)}
+.ua-body{position:relative}
+.ua-body.collapsed{max-height:120px;overflow:hidden}
+.ua-body.collapsed::after{content:'';position:absolute;bottom:0;left:0;right:0;height:60px;background:linear-gradient(transparent,var(--surface));pointer-events:none}
+.ua-section{padding:7px 14px 3px;font-size:10px;font-family:'DM Mono',monospace;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;border-top:0.5px solid var(--border)}
+.ua-section:first-of-type{border-top:none;padding-top:9px}
+.ua-name{font-weight:500}
+.ua-detail{font-size:10px;font-family:'DM Mono',monospace;color:var(--text3);margin-top:1px}
+.ua-tag{font-size:10px;font-family:'DM Mono',monospace;color:var(--red);flex-shrink:0;margin-top:2px}
+
+/* Search results */
+.search-result-card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--r);margin-bottom:8px;overflow:hidden}
+.sr-head{display:flex;align-items:center;gap:10px;padding:10px 12px}
+.sr-body{padding:8px 12px 10px;border-top:0.5px solid var(--border);background:var(--surface2)}
+.sr-section{font-size:10px;font-family:'DM Mono',monospace;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;margin-top:8px}
+.sr-section:first-child{margin-top:0}
+.sr-assign-row{display:flex;justify-content:space-between;align-items:flex-start;padding:5px 0;border-bottom:0.5px solid var(--border);gap:8px;font-size:12px}
+.sr-assign-row:last-child{border-bottom:none}
+
+.warn-box{background:rgba(240,196,110,0.08);border:0.5px solid rgba(240,196,110,0.3);border-radius:var(--r);padding:10px 12px;font-size:12px;color:var(--amber);margin-bottom:10px}
+/* ── Dancer home profile panel ── */
+.home-hero{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--rl);padding:18px;margin-bottom:12px}
+.home-hero-top{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.home-avatar{width:48px;height:48px;border-radius:50%;background:rgba(200,240,110,0.12);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:500;color:var(--accent);font-family:'DM Mono',monospace;flex-shrink:0}
+.home-name{font-size:16px;font-weight:500}
+.home-bib{font-size:12px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:2px}
+.home-section{font-size:10px;font-family:'DM Mono',monospace;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;margin-top:14px}
+.home-section:first-of-type{margin-top:0}
+.home-comp-row{background:var(--surface2);border:0.5px solid var(--border);border-radius:var(--r);padding:10px 12px;margin-bottom:6px}
+.home-assign-row{display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:0.5px solid var(--border);gap:8px}
+.home-assign-row:last-child{border-bottom:none}
+.home-empty{font-size:12px;color:var(--text3);padding:6px 0}
+.home-edit-btn{width:100%;padding:9px;background:transparent;border:0.5px solid var(--border2);border-radius:var(--r);color:var(--text2);font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;margin-top:4px;transition:background 0.15s}
+.home-edit-btn:hover{background:var(--surface2)}
+.info-box{background:rgba(110,200,200,0.06);border:0.5px solid rgba(110,200,200,0.2);border-radius:var(--r);padding:10px 12px;font-size:12px;color:var(--teal);margin-bottom:10px}
+.empty{text-align:center;padding:28px;color:var(--text3);font-size:13px}
+.section-lbl{font-size:11px;font-family:'DM Mono',monospace;color:var(--text3);text-transform:uppercase;letter-spacing:0.7px}
+.count-pill{display:inline-block;background:var(--surface2);border:0.5px solid var(--border);border-radius:20px;padding:1px 8px;font-size:11px;color:var(--text3);margin-left:6px}
+
+.date-check-group{display:flex;flex-wrap:wrap;gap:6px}
+.date-check-label{display:flex;align-items:center;gap:5px;font-size:11px;font-family:'DM Mono',monospace;color:var(--text2);background:var(--surface);border:0.5px solid var(--border2);border-radius:6px;padding:4px 8px;cursor:pointer;user-select:none;transition:border-color 0.15s,background 0.15s}
+.date-check-label:has(input:checked){border-color:var(--accent);background:rgba(200,240,110,0.08);color:var(--accent)}
+.date-check-label input{display:none}
+
+/* Manual assign */
+.ua-item{display:flex;justify-content:space-between;align-items:flex-start;padding:9px 14px;border-bottom:0.5px solid var(--border);gap:8px}
+.ua-item:last-child{border-bottom:none}
+.ua-item-left{flex:1;min-width:0}
+.ua-item-actions{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
+.btn-assign{font-size:10px;font-family:'DM Mono',monospace;color:var(--accent);background:rgba(200,240,110,0.08);border:0.5px solid rgba(200,240,110,0.3);border-radius:6px;padding:4px 9px;cursor:pointer;white-space:nowrap;transition:background 0.15s}
+.btn-assign:hover{background:rgba(200,240,110,0.16)}
+
+.ma-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:600;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box}
+.ma-overlay.hidden{display:none}
+.ma-modal{background:var(--surface);border-radius:var(--rl);width:100%;max-width:480px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 12px 48px rgba(0,0,0,0.5);box-sizing:border-box}
+.ma-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:0.5px solid var(--border);flex-shrink:0}
+.ma-body{flex:1;overflow-y:auto;padding:14px 16px;overflow-x:hidden}
+.ma-comp-block{background:var(--surface2);border:0.5px solid var(--border);border-radius:var(--r);padding:12px;margin-bottom:10px;box-sizing:border-box}
+.ma-comp-title{font-size:11px;font-family:'DM Mono',monospace;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px}
+.ma-recorder-row{display:flex;align-items:center;gap:8px;margin-top:6px;min-width:0;overflow:hidden}
+.ma-recorder-label{font-size:11px;color:var(--text2);white-space:nowrap;flex-shrink:0}
+.ma-recorder-select{flex:1;min-width:0;max-width:100%;background:var(--surface);border:0.5px solid var(--border2);border-radius:6px;padding:5px 8px;font-size:12px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;overflow:hidden;text-overflow:ellipsis}
+.ma-footer{padding:12px 16px;border-top:0.5px solid var(--border);display:flex;gap:8px;flex-shrink:0}
+.results-segment{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--rl);overflow:hidden}
+.results-seg-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:0.5px solid var(--border)}
+.results-preview-wrap{position:relative;height:140px;overflow:hidden;cursor:pointer}
+.results-preview-iframe{width:100%;height:400px;border:none;pointer-events:none;transform:scale(0.5);transform-origin:top left;width:200%;height:800px}
+.results-preview-fade{position:absolute;inset:0;background:linear-gradient(to bottom,transparent 20%,var(--surface) 100%)}
+.results-preview-tap{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);font-size:11px;font-family:'DM Mono',monospace;color:var(--text3);background:var(--surface2);border:0.5px solid var(--border2);border-radius:20px;padding:4px 12px;white-space:nowrap}
+
+/* Results popup — scoped inside panel-schedule */
+.results-popup-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.65);z-index:10;display:flex;align-items:flex-start;justify-content:center;padding:12px;box-sizing:border-box;overflow-y:auto;border-radius:var(--rl)}
+.results-popup-overlay.hidden{display:none}
+.results-popup-modal{background:var(--surface);border-radius:var(--rl);width:100%;max-height:calc(100% - 24px);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.5)}
+.results-popup-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:0.5px solid var(--border);flex-shrink:0}
+.results-popup-iframe{flex:1;width:100%;border:none;background:#fff;min-height:55vh}
+</style>
+</head>
+<body>
+
+<!-- ═══ LOGIN MODAL ═══ -->
+<div class="modal-overlay" id="login-modal">
+  <div class="modal">
+
+    <!-- Single sign-in step — role is assigned automatically -->
+    <div class="modal-step active" id="step-auth">
+      <div style="font-size:26px;margin-bottom:8px">🎬</div>
+      <h2>AWCSO 2026</h2>
+      <p style="margin-bottom:16px">Video Assignment Scheduler</p>
+      <div id="gsi-btn-wrap" style="display:flex;justify-content:center;margin-bottom:8px;min-height:44px"></div>
+      <button class="auth-btn" id="gsi-fallback" style="display:none" onclick="triggerGoogle()">
+        <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
+        Continue with Google
+      </button>
+      <div class="auth-divider">or email</div>
+      <div id="auth-err" class="auth-err"></div>
+      <div class="form-row" style="text-align:left"><label>Email</label><input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email"/></div>
+      <div class="form-row" style="text-align:left"><label>Password</label><input id="auth-password" type="password" placeholder="••••••••" autocomplete="current-password"/></div>
+      <button class="btn-full" id="email-signin-btn" onclick="emailSignIn()" style="margin-bottom:6px">Sign in</button>
+      <button class="btn-full" style="background:transparent;border:0.5px solid var(--border2);color:var(--text2);margin-bottom:0" onclick="emailSignUp()">Create account</button>
+      <span class="modal-skip" onclick="skipLogin()">Skip (view only)</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ DANCER PROFILE POPUP ═══ -->
+<div class="popup-overlay hidden" id="dancer-popup" onclick="closePopup(event)">
+  <div class="popup" onclick="event.stopPropagation()">
+    <div class="popup-head">
+      <div class="popup-avatar" id="popup-avatar"></div>
+      <div class="popup-title">
+        <div class="popup-name" id="popup-name"></div>
+        <div class="popup-bib" id="popup-bib"></div>
+      </div>
+      <button class="popup-close" onclick="closePopupDirect()">×</button>
+    </div>
+    <div class="popup-body" id="popup-body"></div>
+  </div>
+</div>
+
+<div class="app">
+  <div class="topbar">
+    <div class="topbar-left">
+      <h1><span class="accent-dot"></span>AWCSO 2026</h1>
+      <p><span class="sync-dot" id="sync-dot"></span><span id="sync-label" style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace">not connected</span></p>
+    </div>
+    <div id="user-display"></div>
+  </div>
+
+  <div class="search-wrap">
+    <span class="search-icon">⌕</span>
+    <input id="search-input" type="text" placeholder="Search dancer by name or bib…" oninput="onSearch()"/>
+  </div>
+  <div id="search-results-wrap" style="padding:0 16px;display:none"></div>
+
+  <div class="nav">
+    <button class="nav-tab active" id="tab-add" onclick="switchTab('add')">Add</button>
+    <button class="nav-tab" id="tab-dancers" onclick="switchTab('dancers')">Dancers</button>
+    <button class="nav-tab" id="tab-schedule" onclick="switchTab('schedule')">Schedule / Results</button>
+    <button class="nav-tab" id="tab-assign" onclick="switchTab('assign')">Assignments</button>
+  </div>
+
+  <!-- DANCER HOME: outside the track, shown in place of add panel -->
+  <div id="panel-home" style="display:none;padding:14px 16px">
+    <div id="home-profile-wrap"></div>
+  </div>
+
+  <div id="swipe-container">
+  <div id="swipe-track">
+
+  <div class="panel" id="panel-add">
+    <div class="form-row"><label>Full name</label><input id="dname" type="text" placeholder="e.g. Alice Tan"/></div>
+    <div class="fg2"><div class="form-row"><label>Bib no.</label><input id="dbib" type="text" placeholder="365"/></div><div></div></div>
+    <div id="add-comps-list"></div>
+    <button class="btn-sm-accent" onclick="addCompEntry()" style="width:100%;padding:8px;margin-bottom:12px">+ Add competition</button>
+    <button class="btn-full" id="add-btn" onclick="addDancer()">+ Add dancer</button>
+  </div>
+
+  <div class="panel" id="panel-dancers">
+    <div style="display:flex;align-items:center;margin-bottom:12px">
+      <span class="section-lbl">Dancers<span class="count-pill" id="dancer-count">0</span></span>
+    </div>
+    <div id="dancer-list-wrap"><div class="empty">No dancers added yet.</div></div>
+  </div>
+
+  <div class="panel" id="panel-schedule" style="position:relative">
+    <div class="section-lbl" style="margin-bottom:12px">Schedule / Results</div>
+
+    <!-- Results segment -->
+    <div class="results-segment" style="margin-bottom:18px">
+      <div class="results-seg-head">
+        <div>
+          <div style="font-size:13px;font-weight:500;color:var(--text)">Results</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px;font-family:'DM Mono',monospace">scoring.dance live results</div>
+        </div>
+      </div>
+      <!-- Faded preview of scoring.dance -->
+      <div class="results-preview-wrap">
+        <iframe src="https://scoring.dance" class="results-preview-iframe" scrolling="no" tabindex="-1"></iframe>
+        <div class="results-preview-fade"></div>
+        <div class="results-preview-tap" onclick="openResultsPopup()">Tap to view results</div>
+      </div>
+    </div>
+
+    <!-- Schedule config -->
+    <div class="section-lbl" style="margin-bottom:4px">Heat configuration</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px" id="sched-subtitle">Set max heats per division.</div>
+    <div id="sched-list"></div>
+
+    <!-- Results popup — inside panel-schedule so position:absolute is contained -->
+    <div class="results-popup-overlay hidden" id="results-popup" onclick="closeResultsPopup(event)">
+      <div class="results-popup-modal" onclick="event.stopPropagation()">
+        <div class="results-popup-head">
+          <div>
+            <div style="font-size:14px;font-weight:500">Results</div>
+            <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">scoring.dance</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <a href="https://scoring.dance" target="_blank" style="font-size:11px;color:var(--teal);font-family:'DM Mono',monospace;text-decoration:none">Open ↗</a>
+            <button class="popup-close" onclick="closeResultsPopupDirect()">×</button>
+          </div>
+        </div>
+        <iframe src="https://scoring.dance" class="results-popup-iframe" id="results-iframe"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-assign">
+    <div id="assign-generate-wrap" style="display:none">
+      <button class="btn-full generate" onclick="generateAssignments()">Generate assignments ↗</button>
+    </div>
+    <div id="output"></div>
+  </div>
+
+  </div><!-- end swipe-track -->
+  </div><!-- end swipe-container -->
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// ── FIREBASE ──────────────────────────────────────────────────────────────────
+firebase.initializeApp({
+  apiKey:"AIzaSyCTwIGBxsflxCa1xfpNXVeJzurHPS_M46o",
+  authDomain:"awcso-2026.firebaseapp.com",
+  projectId:"awcso-2026",
+  storageBucket:"awcso-2026.firebasestorage.app",
+  messagingSenderId:"713922468927",
+  appId:"1:713922468927:web:9ae1fb1a0c954e6f062c8a"
+});
+const db=firebase.firestore();
+const auth=firebase.auth();
+const GOOGLE_CLIENT_ID='562246965996-9osinkdf8ql62mfphov5a25bm123mska.apps.googleusercontent.com';
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+const HEAT_DUR=9;
+const CROSS_DIV_BUFFER=1; // heats free before/after to record cross-division
+let dancers=[],editingId=null,searchQuery='',lastResults=[],savedAssignments=[];
+let currentUser=null,currentRole=null;
+let unsubDancers=null,unsubAssignments=null;
+const divMaxHeats={};
+let addCompEntries=[];
+
+const DIVISIONS={
+  novice_strictly_fri:{label:"Novice/Int Strictly Swing",day:"Fri 17 Apr",badge:"b-fri",rounds:[
+    {round:"Prelims",type:"prelim",start:"18:30",end:"19:10",marshalBy:"18:20"},
+    {round:"Semis",type:"semi",start:"19:50",end:"20:20",marshalBy:"19:40"},
+    {round:"Finals",type:"final",start:"20:20",end:"20:40",marshalBy:"20:10"},
+  ]},
+  newcomers_jj_fri:{label:"Newcomers J&J",day:"Fri 17 Apr",badge:"b-fri",rounds:[
+    {round:"Prelims",type:"prelim",start:"19:10",end:"19:50",marshalBy:"19:00"},
+    {round:"Finals",type:"final",start:"20:40",end:"21:00",marshalBy:"20:30"},
+  ]},
+  open_strictly_fri:{label:"Open Strictly Swing",day:"Fri 17 Apr",badge:"b-fri",rounds:[
+    {round:"Prelims & Semis",type:"semi",start:"21:10",end:"21:50",marshalBy:"21:00"},
+    {round:"Finals",type:"final",start:"21:50",end:"22:50",marshalBy:"21:40"},
+  ]},
+  novice_jj_sat:{label:"Novice J&J",day:"Sat 18 Apr",badge:"b-sat",rounds:[
+    {round:"Prelims",type:"prelim",start:"16:00",end:"16:50",marshalBy:"15:50"},
+    {round:"Semis",type:"semi",start:"17:20",end:"17:50",marshalBy:"17:10"},
+    {round:"Finals",type:"final",start:"18:30",end:"18:50",marshalBy:"18:20"},
+  ]},
+  intermediate_jj_sat:{label:"Intermediate J&J",day:"Sat 18 Apr",badge:"b-sat",rounds:[
+    {round:"Prelims",type:"prelim",start:"16:50",end:"17:20",marshalBy:"16:40"},
+    {round:"Semis",type:"semi",start:"17:50",end:"18:30",marshalBy:"17:40"},
+    {round:"Finals",type:"final",start:"18:50",end:"19:10",marshalBy:"18:40"},
+  ]},
+  advanced_jj_sat:{label:"Advanced J&J",day:"Sat 18 Apr",badge:"b-sat",rounds:[
+    {round:"Prelims",type:"prelim",start:"19:10",end:"19:50",marshalBy:"19:00"},
+    {round:"Finals",type:"final",start:"20:35",end:"21:00",marshalBy:"20:25"},
+  ]},
+  allstar_jj_sat:{label:"All-Star J&J",day:"Sat 18 Apr",badge:"b-sat",rounds:[
+    {round:"Prelims",type:"prelim",start:"19:50",end:"20:20",marshalBy:"19:40"},
+    {round:"Finals",type:"final",start:"21:00",end:"21:50",marshalBy:"20:50"},
+  ]},
+  champions_jj_sat:{label:"Champions J&J",day:"Sat 18 Apr",badge:"b-sat",rounds:[
+    {round:"Prelims",type:"prelim",start:"20:20",end:"20:35",marshalBy:"20:10"},
+    {round:"Finals",type:"final",start:"21:50",end:"22:30",marshalBy:"21:40"},
+  ]},
+  proam_followers_sun:{label:"Pro-Am Followers J&J",day:"Sun 19 Apr",badge:"b-sun",rounds:[
+    {round:"Prelims",type:"prelim",start:"19:00",end:"19:45",marshalBy:"18:50"},
+    {round:"Finals",type:"final",start:"20:45",end:"21:40",marshalBy:"20:35"},
+  ]},
+  proam_leaders_sun:{label:"Pro-Am Leaders J&J",day:"Sun 19 Apr",badge:"b-sun",rounds:[
+    {round:"Prelims",type:"prelim",start:"19:45",end:"20:30",marshalBy:"19:35"},
+    {round:"Finals",type:"final",start:"20:45",end:"21:40",marshalBy:"20:35"},
+  ]},
+};
+Object.keys(DIVISIONS).forEach(k=>divMaxHeats[k]=null);
+
+// ── SYNC STATUS ───────────────────────────────────────────────────────────────
+function setSyncStatus(s){
+  document.getElementById('sync-dot').className='sync-dot '+s;
+  document.getElementById('sync-label').textContent={syncing:'syncing…',synced:'synced',error:'sync error',offline:'offline'}[s]||s;
+}
+
+// ── ADMIN WHITELIST ───────────────────────────────────────────────────────────
+// Add admin emails or Firebase UIDs here. Everyone else is automatically a dancer.
+const ADMIN_WHITELIST=[
+  // emails
+  'arklvl100@gmail.com',
+  'celestialgal86@gmail.com',
+];
+const ADMIN_UID_WHITELIST=[
+  // Firebase UIDs (find in Firebase Console → Authentication)
+  'hMENqE7wDBUNBjRk27lDKVgOVoU2',
+  'l2dXwAkOEba7fn54u5zxrjT9nio2',
+];
+
+function resolveRole(email,uid){
+  const e=(email||'').toLowerCase().trim();
+  if(ADMIN_WHITELIST.some(a=>a.toLowerCase()===e))return'admin';
+  if(ADMIN_UID_WHITELIST.includes(uid))return'admin';
+  return'dancer';
+}
+
+// ── LOGIN FLOW ────────────────────────────────────────────────────────────────
+function skipLogin(){
+  currentUser=null;currentRole='dancer';
+  document.getElementById('login-modal').classList.add('hidden');
+  onLoginComplete();
+}
+
+// Google GSI
+function renderGSIButton(){
+  const wrap=document.getElementById('gsi-btn-wrap');
+  wrap.innerHTML='';
+  if(typeof google==='undefined'||!google.accounts){document.getElementById('gsi-fallback').style.display='flex';return;}
+  google.accounts.id.initialize({client_id:GOOGLE_CLIENT_ID,callback:handleGoogleCredential,auto_select:false});
+  google.accounts.id.renderButton(wrap,{theme:'filled_black',size:'large',shape:'rectangular',width:240,text:'continue_with'});
+}
+function triggerGoogle(){if(typeof google!=='undefined')google.accounts.id.prompt();}
+
+function handleGoogleCredential(response){
+  try{
+    const p=JSON.parse(atob(response.credential.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+    const fbCredential=firebase.auth.GoogleAuthProvider.credential(response.credential);
+    auth.signInWithCredential(fbCredential).then(result=>{
+      const uid=result.user.uid;
+      const email=p.email||'';
+      currentUser={name:p.name||email,email,picture:p.picture||null,provider:'google',uid};
+      currentRole=resolveRole(email,uid);
+      saveUserRole();
+      document.getElementById('login-modal').classList.add('hidden');
+      onLoginComplete();
+    }).catch(e=>{showAuthErr(e.message);});
+  }catch(e){showAuthErr('Sign-in failed. Please try again.');}
+}
+
+// Email/password
+function emailSignIn(){
+  const email=document.getElementById('auth-email').value.trim();
+  const pw=document.getElementById('auth-password').value;
+  if(!email||!pw){showAuthErr('Enter email and password.');return;}
+  auth.signInWithEmailAndPassword(email,pw).then(result=>{
+    const uid=result.user.uid;
+    currentUser={name:result.user.displayName||email,email,provider:'email',uid};
+    currentRole=resolveRole(email,uid);
+    saveUserRole();
+    document.getElementById('login-modal').classList.add('hidden');
+    onLoginComplete();
+  }).catch(e=>{showAuthErr(friendlyAuthErr(e.code));});
+}
+
+function emailSignUp(){
+  const email=document.getElementById('auth-email').value.trim();
+  const pw=document.getElementById('auth-password').value;
+  if(!email||!pw){showAuthErr('Enter email and password.');return;}
+  if(pw.length<6){showAuthErr('Password must be at least 6 characters.');return;}
+  auth.createUserWithEmailAndPassword(email,pw).then(result=>{
+    const uid=result.user.uid;
+    currentUser={name:email,email,provider:'email',uid};
+    currentRole=resolveRole(email,uid);
+    saveUserRole();
+    document.getElementById('login-modal').classList.add('hidden');
+    onLoginComplete();
+  }).catch(e=>{showAuthErr(friendlyAuthErr(e.code));});
+}
+
+function showStep(stepId){
+  // Only one step now — kept for compatibility
+  document.getElementById('step-auth').classList.add('active');
+}
+
+function friendlyAuthErr(code){
+  return{
+    'auth/user-not-found':'No account found with this email.',
+    'auth/wrong-password':'Incorrect password.',
+    'auth/email-already-in-use':'Email already in use. Try signing in.',
+    'auth/invalid-email':'Invalid email address.',
+    'auth/too-many-requests':'Too many attempts. Try again later.',
+    'auth/invalid-credential':'Invalid email or password.',
+  }[code]||'Sign-in failed. Please try again.';
+}
+
+function showAuthErr(msg){
+  const el=document.getElementById('auth-err');
+  el.textContent=msg;el.classList.add('show');
+}
+
+function saveUserRole(){
+  if(currentUser?.uid) db.collection('users').doc(currentUser.uid).set({name:currentUser.name,email:currentUser.email,role:currentRole,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true}).catch(console.error);
+}
+
+function signOut(){
+  auth.signOut().catch(()=>{});
+  if(unsubDancers){unsubDancers();unsubDancers=null;}
+  if(unsubAssignments){unsubAssignments();unsubAssignments=null;}
+  currentUser=null;currentRole=null;dancers=[];lastResults=[];savedAssignments=[];
+  renderUserChip();setSyncStatus('offline');
+
+  // ── Fully reset UI state so wrong panel can't bleed into re-login ──
+  // Reset tab bar to first tab
+  TAB_ORDER_NAV.forEach(t=>document.getElementById('tab-'+t).classList.toggle('active',t==='add'));
+  document.getElementById('tab-add').textContent='Add';
+  currentTabIndex=0;
+  isAnimating=false;
+  // Hide home panel, restore track
+  document.getElementById('panel-home').style.display='none';
+  document.getElementById('swipe-container').style.display='block';
+  // Reset track to position 0 with no animation
+  const track=document.getElementById('swipe-track');
+  if(track){track.style.transition='none';track.style.transform='translateX(0%)';}
+  // Reset add panel content
+  document.getElementById('panel-add').innerHTML=`
+    <div class="form-row"><label>Full name</label><input id="dname" type="text" placeholder="e.g. Alice Tan"/></div>
+    <div class="fg2"><div class="form-row"><label>Bib no.</label><input id="dbib" type="text" placeholder="365"/></div><div></div></div>
+    <div id="add-comps-list"></div>
+    <button class="btn-sm-accent" onclick="addCompEntry()" style="width:100%;padding:8px;margin-bottom:12px">+ Add competition</button>
+    <button class="btn-full" id="add-btn" onclick="addDancer()">+ Add dancer</button>`;
+  // Clear other panels
+  document.getElementById('dancer-list-wrap').innerHTML='<div class="empty">No dancers added yet.</div>';
+  document.getElementById('dancer-count').textContent='0';
+  document.getElementById('output').innerHTML='';
+  document.getElementById('sched-list').innerHTML='';
+  document.getElementById('search-results-wrap').style.display='none';
+  document.getElementById('search-input').value='';
+  _syncHeight(0);
+
+  // Reset modal
+  showStep('step-auth');
+  document.getElementById('auth-err').classList.remove('show');
+  document.getElementById('auth-email').value='';
+  document.getElementById('auth-password').value='';
+  document.getElementById('login-modal').classList.remove('hidden');
+  setTimeout(()=>{
+    renderGSIButton();
+    if(typeof google!=='undefined'&&google.accounts)google.accounts.id.disableAutoSelect();
+  },100);
+}
+
+function onLoginComplete(){
+  renderUserChip();
+  applyRolePermissions();
+  // For dancer role: show track initially at add panel,
+  // Firestore listener will switch to home once dancers load
+  setTrackInstant(0);
+  startFirestoreListeners();
+  initAddForm();
+  const addTab=document.getElementById('tab-add');
+  addTab.textContent=currentRole==='dancer'?'Home':'Add';
+  setTimeout(()=>{if(window._showSwipeHint)window._showSwipeHint();},1400);
+}
+
+function renderUserChip(){
+  const el=document.getElementById('user-display');
+  if(!currentUser&&!currentRole){el.innerHTML='';return;}
+  const name=currentUser?.name||'Guest';
+  const ini=name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const av=currentUser?.picture
+    ?`<img src="${currentUser.picture}" referrerpolicy="no-referrer"/>`
+    :`<div class="user-chip-av">${ini}</div>`;
+  el.innerHTML=`<div class="user-chip" title="Click to sign out" onclick="signOut()">
+    ${av}<span class="user-chip-name">${esc(name)}</span>
+    <span class="role-badge ${currentRole||'dancer'}">${currentRole||'guest'}</span>
+  </div>`;
+}
+
+function applyRolePermissions(){
+  const isAdmin=currentRole==='admin';
+  document.getElementById('assign-generate-wrap').style.display=isAdmin?'block':'none';
+  document.getElementById('sched-subtitle').textContent=isAdmin?'Set max heats per division.':'Schedule is read-only.';
+}
+
+// GSI init — render button once Google script loads
+window.addEventListener('load',()=>setTimeout(()=>{
+  renderGSIButton();
+},500));
+
+// ── FIRESTORE ─────────────────────────────────────────────────────────────────
+function startFirestoreListeners(){
+  setSyncStatus('syncing');
+  if(unsubDancers)unsubDancers();
+  unsubDancers=db.collection('dancers').orderBy('createdAt','asc').onSnapshot(snap=>{
+    dancers=snap.docs.map(d=>({...d.data(),id:d.id}));
+    document.getElementById('dancer-count').textContent=dancers.length;
+    if(document.getElementById('panel-dancers').classList.contains('active'))renderDancerList();
+    // For dancer role: always try to show home if linked profile exists
+    if(currentRole==='dancer'&&currentUser?.uid){
+      const linked=dancers.find(d=>d.linkedUid===currentUser.uid);
+      if(linked){
+        // Always switch to home — switchTab is idempotent so safe to call every sync
+        if(currentTabIndex===0){
+          // Already on the first tab — directly show home
+          document.getElementById('swipe-container').style.display='none';
+          document.getElementById('panel-home').style.display='block';
+          renderHomeProfile(linked);
+        }
+        // If user has navigated away from home, don't interrupt them
+      }
+    }
+    setSyncStatus('synced');
+  },e=>{console.error(e);setSyncStatus('error');});
+
+  if(unsubAssignments)unsubAssignments();
+  unsubAssignments=db.collection('meta').doc('assignments').onSnapshot(snap=>{
+    if(snap.exists){
+      savedAssignments=snap.data().results||[];lastResults=[...savedAssignments];
+      if(document.getElementById('panel-assign').classList.contains('active'))renderAssignmentsFromSaved();
+      // Refresh home panel if visible
+      if(currentRole==='dancer'&&currentUser?.uid){
+        const linked=dancers.find(d=>d.linkedUid===currentUser.uid);
+        if(linked&&document.getElementById('panel-home').style.display!=='none'&&document.getElementById('panel-home').style.display!=='')renderHomeProfile(linked);
+      }
+    }
+  });
+
+  db.collection('meta').doc('maxHeats').get().then(snap=>{if(snap.exists)Object.assign(divMaxHeats,snap.data());}).catch(()=>{});
+}
+
+// ── NAV & TRACK-BASED SWIPE ───────────────────────────────────────────────────
+const TAB_ORDER_NAV=['add','dancers','schedule','assign'];
+let currentTabIndex=0;
+let isAnimating=false;
+
+function getTrackX(idx){return-(idx*25);}
+
+function setTrackInstant(idx){
+  const track=document.getElementById('swipe-track');
+  if(!track)return;
+  track.style.transition='none';
+  track.style.transform=`translateX(${getTrackX(idx)}%)`;
+  _syncHeight(idx);
+  _watchPanelHeight(idx);
+}
+
+function setTrackAnimated(idx,onDone){
+  const track=document.getElementById('swipe-track');
+  if(!track){isAnimating=false;if(onDone)onDone();return;}
+  isAnimating=true;
+  track.style.transition='transform 0.32s cubic-bezier(0.4,0,0.2,1)';
+  track.style.transform=`translateX(${getTrackX(idx)}%)`;
+  const done=()=>{
+    track.style.transition='none';
+    _syncHeight(idx);
+    _watchPanelHeight(idx);
+    isAnimating=false;
+    if(onDone)onDone();
+  };
+  track.addEventListener('transitionend',done,{once:true});
+  setTimeout(()=>{if(isAnimating)done();},390);
+}
+
+function _syncHeight(idx){
+  const ids=['panel-add','panel-dancers','panel-schedule','panel-assign'];
+  const el=document.getElementById(ids[idx]);
+  const container=document.getElementById('swipe-container');
+  if(!el||!container)return;
+  // Use scrollHeight (includes overflow), fallback to offsetHeight
+  const h=Math.max(el.scrollHeight,el.offsetHeight,200);
+  container.style.height=h+'px';
+}
+
+// Auto-sync height whenever the active panel's content changes (e.g. adding comp blocks)
+let _heightObserver=null;
+function _watchPanelHeight(idx){
+  if(_heightObserver)_heightObserver.disconnect();
+  const ids=['panel-add','panel-dancers','panel-schedule','panel-assign'];
+  const el=document.getElementById(ids[idx]);
+  if(!el||typeof ResizeObserver==='undefined')return;
+  _heightObserver=new ResizeObserver(()=>_syncHeight(idx));
+  _heightObserver.observe(el);
+}
+
+function switchTab(tab,animate=true){
+  const newIdx=TAB_ORDER_NAV.indexOf(tab);
+  if(newIdx<0)return;
+
+  const linkedProfile=(currentRole==='dancer'&&currentUser?.uid)
+    ?dancers.find(d=>d.linkedUid===currentUser.uid):null;
+
+  TAB_ORDER_NAV.forEach(t=>document.getElementById('tab-'+t).classList.toggle('active',t===tab));
+  document.getElementById('search-results-wrap').style.display='none';
+
+  // Home panel: hide track, show home div
+  if(tab==='add'&&linkedProfile){
+    document.getElementById('swipe-container').style.display='none';
+    document.getElementById('panel-home').style.display='block';
+    currentTabIndex=0;
+    renderHomeProfile(linkedProfile);
+    return;
+  }
+
+  // For all other tabs (or no linked profile): restore track
+  document.getElementById('swipe-container').style.display='block';
+  document.getElementById('panel-home').style.display='none';
+
+  if(animate&&newIdx!==currentTabIndex){
+    setTrackAnimated(newIdx,()=>{
+      currentTabIndex=newIdx;
+      _afterSwitch(tab);
+    });
+  } else {
+    setTrackInstant(newIdx);
+    currentTabIndex=newIdx;
+    _afterSwitch(tab);
+  }
+}
+
+function _afterSwitch(tab){
+  if(tab==='dancers')renderDancerList();
+  if(tab==='schedule')buildSchedulePanel();
+  if(tab==='assign'&&savedAssignments.length)renderAssignmentsFromSaved();
+  // Sync height after content renders, then watch for further changes
+  requestAnimationFrame(()=>{
+    _syncHeight(currentTabIndex);
+    _watchPanelHeight(currentTabIndex);
+  });
+}
+
+window.addEventListener('resize',()=>_syncHeight(currentTabIndex));
+
+// ── DANCER HOME PROFILE ───────────────────────────────────────────────────────
+function renderHomeProfile(d){
+  const wrap=document.getElementById('home-profile-wrap');
+  if(!d){wrap.innerHTML='';return;}
+  const ini=d.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const comps=(d.competitions||[]);
+  // Only show prelims/semis, skip finals per requirement
+  const nonFinalComps=comps.filter(c=>DIVISIONS[c.div]);
+
+  // Get assignments from lastResults
+  const myRecordings=lastResults.filter(r=>r.recorder===d.name);
+  const recordedBy=lastResults.filter(r=>r.forDancer===d.name);
+  // Filter out finals from assignments too
+  const myRecordingsNF=myRecordings.filter(r=>r.round.toLowerCase()!=='finals'&&!r.round.toLowerCase().includes('final'));
+  const recordedByNF=recordedBy.filter(r=>r.round.toLowerCase()!=='finals'&&!r.round.toLowerCase().includes('final'));
+
+  let html=`<div class="home-hero">
+    <div class="home-hero-top">
+      <div class="home-avatar">${ini}</div>
+      <div>
+        <div class="home-name">${esc(d.name)}</div>
+        <div class="home-bib">${d.bib?`Bib #${esc(d.bib)}`:'No bib assigned'}</div>
+      </div>
+    </div>
+
+    <div class="home-section">My competitions</div>`;
+
+  if(!nonFinalComps.length){html+=`<div class="home-empty">No competitions added yet.</div>`;}
+  nonFinalComps.forEach(c=>{
+    const dv=DIVISIONS[c.div];
+    html+=`<div class="home-comp-row">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">
+        <span class="badge ${dv.badge}">${dv.day}</span>
+        <span style="font-size:12px;font-weight:500">${dv.label}</span>
+        <span class="badge ${c.role==='leader'?'b-lead':'b-foll'}">${c.role}</span>
+      </div>
+      <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">
+        ${c.heat?`Heat ${c.heat} · `:''}Need filming: ${c.needFilming} · Can film: ${c.canFilm}
+      </div>
+    </div>`;
+  });
+
+  html+=`<div class="home-section">Being recorded by (${recordedByNF.length})</div>`;
+  if(!recordedByNF.length){html+=`<div class="home-empty">${lastResults.length?'Not assigned yet.':'Assignments not generated yet.'}</div>`;}
+  recordedByNF.forEach(r=>{
+    const rid=dancers.find(x=>x.name===r.recorder)?.id||'';
+    html+=`<div class="home-assign-row">
+      <div>
+        <div style="font-size:13px;font-weight:500"><span class="name-link" onclick="openPopup('${rid}')">${esc(r.recorder)}</span>${r.recBib?` <span class="assign-bib">#${esc(r.recBib)}</span>`:''}</div>
+        <div class="assign-badges" style="margin-top:4px">
+          <span class="badge ${r.badge}">${r.day}</span>
+          <span class="badge b-div">${r.divLabel} — ${r.round}</span>
+        </div>
+      </div>
+      <div style="text-align:right;font-size:11px;font-family:'DM Mono',monospace;color:var(--text3);white-space:nowrap">${r.timeStr}</div>
+    </div>`;
+  });
+
+  html+=`<div class="home-section">My recording tasks (${myRecordingsNF.length})</div>`;
+  if(!myRecordingsNF.length){html+=`<div class="home-empty">${lastResults.length?'No tasks assigned.':'Assignments not generated yet.'}</div>`;}
+  myRecordingsNF.forEach(r=>{
+    const fid=dancers.find(x=>x.name===r.forDancer)?.id||'';
+    html+=`<div class="home-assign-row">
+      <div>
+        <div style="font-size:13px;font-weight:500"><span class="name-link" onclick="openPopup('${fid}')">${esc(r.forDancer)}</span>${r.forBib?` <span class="assign-bib">#${esc(r.forBib)}</span>`:''}</div>
+        <div class="assign-badges" style="margin-top:4px">
+          <span class="badge ${r.badge}">${r.day}</span>
+          <span class="badge b-div">${r.divLabel} — ${r.round}</span>
+          <span class="badge ${r.forRole==='leader'?'b-lead':'b-foll'}">${r.forRole}</span>
+          ${r.crossHeat?`<span class="badge b-cross">cross-heat</span>`:''}
+        </div>
+        ${r.note?`<div style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:2px">${r.note}</div>`:''}
+      </div>
+      <div style="text-align:right;font-size:11px;font-family:'DM Mono',monospace;color:var(--text3);white-space:nowrap">${r.timeStr}</div>
+    </div>`;
+  });
+
+  html+=`</div>
+  <button class="home-edit-btn" onclick="openEditProfile('${d.id}')">✎ Edit profile</button>`;
+  wrap.innerHTML=html;
+}
+
+function openEditProfile(id){
+  const d=dancers.find(x=>x.id===id);if(!d)return;
+  editingId=id;
+  // Hide home panel, show track at index 0 (add panel)
+  document.getElementById('panel-home').style.display='none';
+  document.getElementById('swipe-container').style.display='block';
+  setTrackInstant(0);
+  currentTabIndex=0;
+  TAB_ORDER_NAV.forEach(t=>document.getElementById('tab-'+t).classList.toggle('active',t==='add'));
+  renderInlineEditInAddPanel(d);
+  // Sync height after edit form renders
+  requestAnimationFrame(()=>_syncHeight(0));
+}
+
+// buildCompBlock is defined at module scope so addInlineComp() can call it
+function buildCompBlock(c,ci){
+  const isNC=(c?.div==='not_competing');
+  return `<div class="edit-comp-block" id="iec-${ci}" style="background:var(--surface2);border:0.5px solid var(--border);border-radius:var(--r);padding:12px;margin-bottom:10px">
+    <div class="comp-block-title"><span>Competition ${ci+1}</span>
+      ${ci>0?`<button class="btn-icon del" onclick="removeInlineComp(${ci})" style="font-size:13px">✕</button>`:''}
+    </div>
+    <div class="form-row" style="margin-bottom:8px"><select class="ec-div" id="ecd-inline-${ci}" onchange="onDivChange(this,${ci})"></select></div>
+    <div class="fg3" id="iec-role-row-${ci}" style="${isNC?'opacity:0.35;pointer-events:none':''}">
+      <div class="form-row"><label>Role</label><select class="ec-role" ${isNC?'disabled':''}>
+        <option value="follower" ${(c?.role||'follower')==='follower'?'selected':''}>Follower</option>
+        <option value="leader" ${(c?.role)==='leader'?'selected':''}>Leader</option></select></div>
+      <div class="form-row"><label>Heat no.</label><input class="ec-heat" type="number" min="1" value="${c?.heat||''}" placeholder="—" ${isNC?'disabled':''}/></div>
+      <div></div></div>
+    <div class="comp-flags">
+      <div id="iec-nf-wrap-${ci}" style="${isNC?'opacity:0.35;pointer-events:none':''}">
+        <div class="comp-flag-label">Need filming?</div>
+        <select class="ec-nf" ${isNC?'disabled':''}>
+          <option value="yes" ${(!isNC&&(c?.needFilming||'yes')==='yes')?'selected':''}>Yes</option>
+          <option value="no" ${(!isNC&&c?.needFilming==='no')?'selected':''}>No</option>
+          ${isNC?'<option value="no" selected>N/A</option>':''}
+        </select></div>
+      <div>
+        <div class="comp-flag-label">Can film?</div>
+        <select class="ec-cf">
+          <option value="yes" ${(c?.canFilm||'yes')==='yes'?'selected':''}>Yes</option>
+          <option value="no" ${c?.canFilm==='no'?'selected':''}>No</option></select></div>
+    </div>
+    <div class="form-row" style="margin-top:8px" id="iec-dates-wrap-${ci}">
+      <div class="comp-flag-label" style="margin-bottom:4px">Available to film on</div>
+      <div class="date-check-group">
+        ${['Fri 17 Apr','Sat 18 Apr','Sun 19 Apr'].map(d=>{
+          const checked=(c?.filmDates||[]).includes(d)||(!c?.filmDates);
+          return `<label class="date-check-label"><input type="checkbox" class="ec-fd" value="${d}" ${checked?'checked':''}>${d}</label>`;
+        }).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderInlineEditInAddPanel(d){
+  const comps=d.competitions||[];
+
+  document.getElementById('panel-add').innerHTML=`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+      <button class="btn-icon" onclick="cancelInlineEdit()" style="font-size:16px">←</button>
+      <span style="font-size:14px;font-weight:500">Edit my profile</span>
+    </div>
+    <div id="inline-edit-form">
+      <div class="form-row"><label>Full name</label><input id="ie-name" value="${esc(d.name)}"/></div>
+      <div class="fg2"><div class="form-row"><label>Bib no.</label><input id="ie-bib" value="${esc(d.bib||'')}"/></div><div></div></div>
+      <div id="iec-list">${cbHtml}</div>
+      <button class="btn-sm-accent" onclick="addInlineComp()" style="width:100%;padding:8px;margin-bottom:12px">+ Add competition</button>
+      <button class="btn-full" onclick="saveInlineEdit('${d.id}')">Save changes</button>
+    </div>`;
+
+  comps.forEach((c,ci)=>{const sel=document.getElementById(`ecd-inline-${ci}`);if(sel)buildDivSelect(sel,c.div);});
+  requestAnimationFrame(()=>_syncHeight(0));
+}
+
+function addInlineComp(){
+  const list=document.getElementById('iec-list');if(!list)return;
+  const ci=list.children.length; // ci>=1 since first block always exists
+  const tmp=document.createElement('div');
+  // Pass ci >= 1 so delete button is rendered
+  const html=buildCompBlock({div:Object.keys(DIVISIONS)[3],role:'follower',heat:'',needFilming:'yes',canFilm:'yes',filmDates:['Fri 17 Apr','Sat 18 Apr','Sun 19 Apr']},Math.max(ci,1));
+  tmp.innerHTML=html;
+  const newBlock=tmp.firstElementChild;
+  // Ensure ID matches actual position
+  newBlock.id=`iec-${ci}`;
+  newBlock.querySelector('.ec-div').id=`ecd-inline-${ci}`;
+  const removeBtn=newBlock.querySelector('.btn-icon.del');
+  if(removeBtn)removeBtn.setAttribute('onclick',`removeInlineComp(${ci})`);
+  list.appendChild(newBlock);
+  const sel=document.getElementById(`ecd-inline-${ci}`);
+  if(sel)buildDivSelect(sel,Object.keys(DIVISIONS)[3]);
+  requestAnimationFrame(()=>_syncHeight(0));
+}
+
+// Inline edit: remove a competition block and re-number
+function removeInlineComp(idx){
+  const list=document.getElementById('iec-list');if(!list)return;
+  const el=document.getElementById(`iec-${idx}`);if(el)el.remove();
+  // Re-number remaining blocks
+  Array.from(list.querySelectorAll('.edit-comp-block')).forEach((b,i)=>{
+    b.id=`iec-${i}`;
+    const title=b.querySelector('.comp-block-title span');
+    if(title)title.textContent=`Competition ${i+1}`;
+    const divSel=b.querySelector('.ec-div');
+    if(divSel)divSel.id=`ecd-inline-${i}`;
+    const removeBtn=b.querySelector('.btn-icon.del');
+    if(removeBtn)removeBtn.setAttribute('onclick',`removeInlineComp(${i})`);
+  });
+  requestAnimationFrame(()=>_syncHeight(0));
+}
+
+function cancelInlineEdit(){
+  editingId=null;
+  initAddForm();
+  const linked=dancers.find(d=>d.linkedUid===currentUser?.uid);
+  if(linked){
+    // Restore home panel
+    document.getElementById('swipe-container').style.display='none';
+    document.getElementById('panel-home').style.display='block';
+    renderHomeProfile(linked);
+  } else {
+    // No linked profile — just show add panel
+    document.getElementById('swipe-container').style.display='block';
+    document.getElementById('panel-home').style.display='none';
+    setTrackInstant(0);
+    currentTabIndex=0;
+  }
+}
+
+async function saveInlineEdit(id){
+  const name=document.getElementById('ie-name')?.value.trim();if(!name)return;
+  const bib=document.getElementById('ie-bib')?.value.trim()||'';
+  const compBlocks=document.querySelectorAll('#iec-list .edit-comp-block');
+  const comps=Array.from(compBlocks).map(cb=>({
+    div:cb.querySelector('.ec-div').value,
+    role:cb.querySelector('.ec-role')?.value||'follower',
+    heat:parseInt(cb.querySelector('.ec-heat')?.value)||null,
+    needFilming:cb.querySelector('.ec-nf').value,
+    canFilm:cb.querySelector('.ec-cf').value,
+    filmDates:Array.from(cb.querySelectorAll('.ec-fd:checked')).map(el=>el.value),
+  }));
+  setSyncStatus('syncing');
+  try{
+    await db.collection('dancers').doc(id).update({name,bib,competitions:comps,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    editingId=null;setSyncStatus('synced');
+    cancelInlineEdit();
+  }catch(e){console.error(e);setSyncStatus('error');}
+}
+function onSearch(){
+  searchQuery=document.getElementById('search-input').value.trim().toLowerCase();
+  const wrap=document.getElementById('search-results-wrap');
+  if(!searchQuery){wrap.style.display='none';wrap.innerHTML='';return;}
+  wrap.style.display='block';
+  const matched=dancers.filter(d=>d.name.toLowerCase().includes(searchQuery)||(d.bib&&d.bib.toLowerCase().includes(searchQuery)));
+  if(!matched.length){wrap.innerHTML='<div class="empty" style="padding:14px">No dancers found.</div>';return;}
+  const rMap={},rbMap={};
+  lastResults.forEach(r=>{
+    const rD=dancers.find(d=>d.name===r.recorder),fD=dancers.find(d=>d.name===r.forDancer);
+    if(rD){if(!rMap[rD.id])rMap[rD.id]=[];rMap[rD.id].push(r);}
+    if(fD){if(!rbMap[fD.id])rbMap[fD.id]=[];rbMap[fD.id].push(r);}
+  });
+  wrap.innerHTML=matched.map(d=>{
+    const ini=d.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const comps=d.competitions||[];
+    let html=`<div class="search-result-card"><div class="sr-head">
+      <div class="dancer-avatar" style="cursor:pointer" onclick="openPopup('${d.id}')">${ini}</div>
+      <div class="dancer-info">
+        <div class="dancer-name"><span class="name-link" onclick="openPopup('${d.id}')">${esc(d.name)}</span>${d.bib?` <span style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">#${esc(d.bib)}</span>`:''}</div>
+        <div class="dancer-sub">${comps.map(c=>`<span class="badge ${DIVISIONS[c.div]?.badge||''}">${DIVISIONS[c.div]?.label||c.div}</span>`).join(' ')}</div>
+      </div></div>`;
+    if(comps.length||rMap[d.id]?.length||rbMap[d.id]?.length){
+      html+=`<div class="sr-body">`;
+      if(comps.length){
+        html+=`<div class="sr-section">Competitions</div>`;
+        comps.forEach(c=>{const dv=DIVISIONS[c.div];if(!dv)return;
+          html+=`<div style="font-size:12px;padding:3px 0;display:flex;gap:5px;align-items:center">
+            <span class="badge ${dv.badge}">${dv.day}</span><span style="color:var(--text2)">${dv.label}</span>
+            <span class="badge ${c.role==='leader'?'b-lead':'b-foll'}">${c.role}</span>
+            ${c.heat?`<span style="color:var(--text3);font-family:'DM Mono',monospace;font-size:10px">H${c.heat}</span>`:''}</div>`;
+        });
+      }
+      if(rbMap[d.id]?.length){
+        html+=`<div class="sr-section">Being recorded by</div>`;
+        rbMap[d.id].forEach(r=>{html+=srAssignRow(r.recorder,r.recBib,r.timeStr,r.divLabel,r.round);});
+      }
+      if(rMap[d.id]?.length){
+        html+=`<div class="sr-section">Recording assignments</div>`;
+        rMap[d.id].forEach(r=>{html+=srAssignRow(r.forDancer,r.forBib,r.timeStr,r.divLabel,r.round);});
+      }
+      html+=`</div>`;
+    }
+    return html+`</div>`;
+  }).join('');
+}
+function srAssignRow(name,bib,time,div,round){
+  return `<div class="sr-assign-row"><div><span style="font-weight:500">${esc(name)}</span>${bib?` <span class="assign-bib">#${esc(bib)}</span>`:''}</div>
+    <div style="text-align:right"><div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)">${time}</div>
+    <div style="font-size:10px;color:var(--text3)">${div} — ${round}</div></div></div>`;
+}
+
+// ── DANCER PROFILE POPUP ──────────────────────────────────────────────────────
+function openPopup(id){
+  const d=dancers.find(x=>x.id===id);if(!d)return;
+  const ini=d.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('popup-avatar').textContent=ini;
+  document.getElementById('popup-name').textContent=d.name;
+  document.getElementById('popup-bib').textContent=d.bib?`Bib #${d.bib}`:'No bib assigned';
+
+  const rMap=[],rbMap=[];
+  lastResults.forEach(r=>{if(r.recorder===d.name)rMap.push(r);if(r.forDancer===d.name)rbMap.push(r);});
+
+  const comps=d.competitions||[];
+  let html='';
+
+  // Competitions
+  html+=`<div class="popup-section">Competitions (${comps.length})</div>`;
+  if(!comps.length){html+=`<div class="popup-empty">No competitions added.</div>`;}
+  comps.forEach((c,i)=>{
+    const dv=DIVISIONS[c.div];if(!dv)return;
+    html+=`<div class="popup-comp-row">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">
+        <span class="badge ${dv.badge}">${dv.day}</span>
+        <span style="font-size:12px;font-weight:500">${dv.label}</span>
+        <span class="badge ${c.role==='leader'?'b-lead':'b-foll'}">${c.role}</span>
+      </div>
+      <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">
+        ${c.heat?`Heat ${c.heat} · `:''}Need filming: ${c.needFilming} · Can film: ${c.canFilm}
+      </div>
+    </div>`;
+  });
+
+  // Being recorded by
+  html+=`<div class="popup-section">Being recorded by (${rbMap.length})</div>`;
+  if(!rbMap.length){html+=`<div class="popup-empty">No recorder assigned yet.</div>`;}
+  rbMap.forEach(r=>{
+    html+=`<div class="popup-assign-row">
+      <div><div style="font-size:13px;font-weight:500"><span class="name-link" onclick="closePopupDirect();setTimeout(()=>openPopup(dancers.find(x=>x.name===${JSON.stringify(r.recorder)})?.id),150)">${esc(r.recorder)}</span>${r.recBib?` <span class="assign-bib">#${esc(r.recBib)}</span>`:''}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${r.divLabel} — ${r.round}</div></div>
+      <div style="text-align:right;font-size:11px;font-family:'DM Mono',monospace;color:var(--text3);white-space:nowrap">${r.timeStr}</div>
+    </div>`;
+  });
+
+  // Recording assignments
+  html+=`<div class="popup-section">Recording assignments (${rMap.length})</div>`;
+  if(!rMap.length){html+=`<div class="popup-empty">No recording tasks assigned.</div>`;}
+  rMap.forEach(r=>{
+    html+=`<div class="popup-assign-row">
+      <div><div style="font-size:13px;font-weight:500"><span class="name-link" onclick="closePopupDirect();setTimeout(()=>openPopup(dancers.find(x=>x.name===${JSON.stringify(r.forDancer)})?.id),150)">${esc(r.forDancer)}</span>${r.forBib?` <span class="assign-bib">#${esc(r.forBib)}</span>`:''}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${r.divLabel} — ${r.round}</div>
+        <div class="assign-badges" style="margin-top:4px"><span class="badge ${r.badge}">${r.day}</span><span class="badge ${r.forRole==='leader'?'b-lead':'b-foll'}">${r.forRole}</span>${r.crossHeat?`<span class="badge b-cross">cross-heat</span>`:''}</div>
+        ${r.note?`<div style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:2px">${r.note}</div>`:''}
+      </div>
+      <div style="text-align:right;font-size:11px;font-family:'DM Mono',monospace;color:var(--text3);white-space:nowrap">${r.timeStr}</div>
+    </div>`;
+  });
+
+  document.getElementById('popup-body').innerHTML=html;
+  document.getElementById('dancer-popup').classList.remove('hidden');
+}
+function closePopup(e){if(e.target===document.getElementById('dancer-popup'))closePopupDirect();}
+function closePopupDirect(){document.getElementById('dancer-popup').classList.add('hidden');}
+
+// ── ADD FORM ──────────────────────────────────────────────────────────────────
+function initAddForm(){addCompEntries=[];_compIdCounter=1;addCompEntry();renderAddCompEntries();}
+
+function buildDivSelect(sel,val){
+  const groups={};
+  Object.entries(DIVISIONS).forEach(([k,v])=>{if(!groups[v.day])groups[v.day]=[];groups[v.day].push({k,v});});
+  sel.innerHTML='';
+  // Add "Not Competing" as first option
+  const ncOpt=document.createElement('option');
+  ncOpt.value='not_competing';ncOpt.textContent='Not Competing';
+  if(val==='not_competing')ncOpt.selected=true;
+  sel.appendChild(ncOpt);
+  Object.entries(groups).forEach(([day,items])=>{
+    const og=document.createElement('optgroup');og.label=day;
+    items.forEach(({k,v})=>{const o=document.createElement('option');o.value=k;o.textContent=v.label;if(val===k)o.selected=true;og.appendChild(o);});
+    sel.appendChild(og);
+  });
+}
+
+// Called when division select changes — toggle Not Competing greying
+function onDivChange(sel,ci){
+  const isNC=sel.value==='not_competing';
+  const block=document.getElementById(`iec-${ci}`);if(!block)return;
+  const roleRow=document.getElementById(`iec-role-row-${ci}`);
+  const nfWrap=document.getElementById(`iec-nf-wrap-${ci}`);
+  if(roleRow){roleRow.style.opacity=isNC?'0.35':'1';roleRow.style.pointerEvents=isNC?'none':'auto';block.querySelectorAll('.ec-role,.ec-heat').forEach(el=>el.disabled=isNC);}
+  if(nfWrap){nfWrap.style.opacity=isNC?'0.35':'1';nfWrap.style.pointerEvents=isNC?'none':'auto';block.querySelector('.ec-nf').disabled=isNC;if(isNC)block.querySelector('.ec-nf').value='no';}
+}
+
+let _compIdCounter=1;
+function addCompEntry(ex){
+  const id=_compIdCounter++;
+  addCompEntries.push({id,div:ex?.div||Object.keys(DIVISIONS)[3],role:ex?.role||'follower',heat:ex?.heat||'',needFilming:ex?.needFilming||'yes',canFilm:ex?.canFilm||'yes',filmDates:ex?.filmDates||['Fri 17 Apr','Sat 18 Apr','Sun 19 Apr']});
+  renderAddCompEntries();
+}
+function removeCompEntry(id){addCompEntries=addCompEntries.filter(e=>e.id!==id);renderAddCompEntries();}
+function updateAddComp(id,field,val){
+  const e=addCompEntries.find(x=>x.id===id);if(!e)return;
+  e[field]=field==='heat'?(parseInt(val)||''):val;
+  if(field==='div')renderAddCompEntries();
+}
+function renderAddCompEntries(){
+  const wrap=document.getElementById('add-comps-list');
+  wrap.innerHTML=addCompEntries.map((e,i)=>{
+    const isNC=e.div==='not_competing';
+    const lbl=isNC?'Not Competing':(DIVISIONS[e.div]?.label.slice(0,22)||'—');
+    return `<div class="comp-block">
+      <div class="comp-block-title"><span>Competition ${i+1}</span><button class="btn-icon del" onclick="removeCompEntry(${e.id})">✕</button></div>
+      <div class="form-row" style="margin-bottom:8px"><select onchange="updateAddComp(${e.id},'div',this.value);renderAddCompEntries()" id="acdiv-${e.id}"></select></div>
+      <div class="fg3" style="${isNC?'opacity:0.35;pointer-events:none':''}">
+        <div class="form-row"><label>Role</label><select onchange="updateAddComp(${e.id},'role',this.value)" ${isNC?'disabled':''}>
+          <option value="follower" ${e.role==='follower'?'selected':''}>Follower</option>
+          <option value="leader" ${e.role==='leader'?'selected':''}>Leader</option></select></div>
+        <div class="form-row"><label>Heat no.</label><input type="number" min="1" value="${e.heat}" placeholder="—" onchange="updateAddComp(${e.id},'heat',this.value)" ${isNC?'disabled':''}/></div>
+        <div></div></div>
+      <div class="comp-flags">
+        <div style="${isNC?'opacity:0.35;pointer-events:none':''}">
+          <div class="comp-flag-label">Need filming? <span>${lbl}</span></div>
+          <select onchange="updateAddComp(${e.id},'needFilming',this.value)" ${isNC?'disabled':''}>
+            <option value="yes" ${!isNC&&e.needFilming==='yes'?'selected':''}>Yes</option>
+            <option value="no" ${isNC||e.needFilming==='no'?'selected':''}>No</option></select></div>
+        <div>
+          <div class="comp-flag-label">Can film? <span>${lbl}</span></div>
+          <select onchange="updateAddComp(${e.id},'canFilm',this.value)">
+            <option value="yes" ${e.canFilm==='yes'?'selected':''}>Yes</option>
+            <option value="no" ${e.canFilm==='no'?'selected':''}>No</option></select></div>
+      </div>
+      <div class="form-row" style="margin-top:8px">
+        <div class="comp-flag-label" style="margin-bottom:4px">Available to film on</div>
+        <div class="date-check-group">
+          ${['Fri 17 Apr','Sat 18 Apr','Sun 19 Apr'].map(d=>`<label class="date-check-label">
+            <input type="checkbox" onchange="updateAddCompDates(${e.id})" data-date="${d}" ${(e.filmDates||[]).includes(d)?'checked':''}>${d}</label>`).join('')}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  addCompEntries.forEach(e=>{const sel=document.getElementById('acdiv-'+e.id);if(sel)buildDivSelect(sel,e.div);});
+}
+
+function updateAddCompDates(id){
+  const e=addCompEntries.find(x=>x.id===id);if(!e)return;
+  // Find the comp block for this entry
+  const allBlocks=document.querySelectorAll('#add-comps-list .comp-block');
+  allBlocks.forEach(block=>{
+    const sel=block.querySelector('select[id^="acdiv-"]');
+    if(sel&&sel.id===`acdiv-${id}`){
+      e.filmDates=Array.from(block.querySelectorAll('input[data-date]:checked')).map(el=>el.dataset.date);
+    }
+  });
+}
+
+async function addDancer(){
+  const name=document.getElementById('dname').value.trim();if(!name)return;
+  if(!addCompEntries.length){alert('Add at least one competition.');return;}
+  const bib=document.getElementById('dbib').value.trim();
+  const comps=addCompEntries.map(e=>({div:e.div,role:e.role,heat:e.heat||null,needFilming:e.needFilming,canFilm:e.canFilm,filmDates:e.filmDates||['Fri 17 Apr','Sat 18 Apr','Sun 19 Apr']}));
+  setSyncStatus('syncing');
+  try{
+    // If dancer role, link this record to their UID so they own it
+    const linkedUid=(currentRole==='dancer'&&currentUser?.uid)?currentUser.uid:null;
+    await db.collection('dancers').add({name,bib,competitions:comps,createdAt:firebase.firestore.FieldValue.serverTimestamp(),addedBy:currentUser?.uid||'guest',...(linkedUid?{linkedUid}:{})});
+    document.getElementById('dname').value='';document.getElementById('dbib').value='';
+    addCompEntries=[];addCompEntry();renderAddCompEntries();
+    const btn=document.getElementById('add-btn');btn.textContent='✓ Saved!';setTimeout(()=>{
+      btn.textContent='+ Add dancer';
+      // If dancer role, home will auto-show via Firestore listener
+    },1500);
+    setSyncStatus('synced');
+  }catch(e){console.error(e);setSyncStatus('error');alert('Error saving. Check Firestore rules.');}
+}
+document.getElementById('dname').addEventListener('keydown',e=>{if(e.key==='Enter')addDancer();});
+
+// ── DANCER LIST ───────────────────────────────────────────────────────────────
+function removeDancer(id){
+  if(!confirm('Remove this dancer?'))return;
+  setSyncStatus('syncing');
+  db.collection('dancers').doc(id).delete().then(()=>setSyncStatus('synced')).catch(e=>{console.error(e);setSyncStatus('error');});
+}
+function startEdit(id){editingId=id;renderDancerList();}
+function cancelEdit(){editingId=null;renderDancerList();}
+async function saveEdit(id){
+  const w=document.getElementById('ew-'+id);if(!w)return;
+  const name=w.querySelector('.e-name').value.trim();if(!name)return;
+  const bib=w.querySelector('.e-bib').value.trim();
+  const comps=Array.from(w.querySelectorAll('.edit-comp-block')).map(cb=>({
+    div:cb.querySelector('.ec-div').value,role:cb.querySelector('.ec-role').value,
+    heat:parseInt(cb.querySelector('.ec-heat').value)||null,
+    needFilming:cb.querySelector('.ec-nf').value,canFilm:cb.querySelector('.ec-cf').value,
+  }));
+  setSyncStatus('syncing');
+  try{
+    // update() only modifies listed fields, so linkedUid is preserved automatically
+    await db.collection('dancers').doc(id).update({name,bib,competitions:comps,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    editingId=null;setSyncStatus('synced');
+  }catch(e){console.error(e);setSyncStatus('error');}
+}
+
+function renderDancerList(){
+  const isAdmin=currentRole==='admin';
+  const wrap=document.getElementById('dancer-list-wrap');
+  if(!dancers.length){wrap.innerHTML='<div class="empty">No dancers added yet.</div>';return;}
+  wrap.innerHTML=dancers.map(d=>{
+    const ini=d.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const comps=d.competitions||[];
+    if(editingId===d.id&&isAdmin){
+      const cbHtml=comps.map((c,ci)=>`<div class="edit-comp-block">
+        <div style="font-size:10px;font-family:'DM Mono',monospace;color:var(--text3);margin-bottom:6px">Competition ${ci+1}</div>
+        <div class="edit-grid" style="margin-bottom:6px">
+          <div><div style="font-size:10px;color:var(--text3);margin-bottom:3px">Role</div>
+            <select class="ec-role"><option value="follower" ${c.role==='follower'?'selected':''}>Follower</option><option value="leader" ${c.role==='leader'?'selected':''}>Leader</option></select></div>
+          <div><div style="font-size:10px;color:var(--text3);margin-bottom:3px">Heat</div>
+            <input class="ec-heat" type="number" min="1" value="${c.heat||''}" placeholder="—"/></div></div>
+        <div class="edit-grid" style="margin-bottom:6px">
+          <div><div style="font-size:10px;color:var(--text3);margin-bottom:3px">Need filming?</div>
+            <select class="ec-nf"><option value="yes" ${c.needFilming==='yes'?'selected':''}>Yes</option><option value="no" ${c.needFilming==='no'?'selected':''}>No</option></select></div>
+          <div><div style="font-size:10px;color:var(--text3);margin-bottom:3px">Can film?</div>
+            <select class="ec-cf"><option value="yes" ${c.canFilm==='yes'?'selected':''}>Yes</option><option value="no" ${c.canFilm==='no'?'selected':''}>No</option></select></div></div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:3px">Division</div>
+        <select class="ec-div" id="ecd-${d.id}-${ci}"></select>
+      </div>`).join('');
+      return `<div class="dancer-item"><div class="edit-wrap" id="ew-${d.id}">
+        <div class="edit-grid" style="margin-bottom:8px">
+          <div><div style="font-size:10px;color:var(--text3);margin-bottom:3px">Name</div><input class="e-name" value="${esc(d.name)}"/></div>
+          <div><div style="font-size:10px;color:var(--text3);margin-bottom:3px">Bib</div><input class="e-bib" value="${esc(d.bib||'')}"/></div></div>
+        ${cbHtml}
+        <div class="edit-actions"><button onclick="cancelEdit()">Cancel</button><button class="save-btn" onclick="saveEdit('${d.id}')">Save</button></div>
+      </div></div>`;
+    }
+    return `<div class="dancer-item">
+      <div class="dancer-head">
+        <div class="dancer-avatar" style="cursor:pointer" onclick="openPopup('${d.id}')">${ini}</div>
+        <div class="dancer-info">
+          <div class="dancer-name"><span class="name-link" onclick="openPopup('${d.id}')">${esc(d.name)}</span>${d.bib?` <span style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">#${esc(d.bib)}</span>`:''}</div>
+          <div class="dancer-sub">${comps.length} comp${comps.length!==1?'s':''}</div>
+        </div>
+        ${isAdmin?`<div class="dancer-actions">
+          <button class="btn-icon edit" onclick="startEdit('${d.id}')">✎</button>
+          <button class="btn-icon del" onclick="removeDancer('${d.id}')">✕</button>
+        </div>`:''}
+      </div>
+      ${comps.length?`<div class="dancer-comps">${comps.map(c=>{const dv=DIVISIONS[c.div];return dv?`<span class="comp-pill"><span class="badge ${dv.badge}">${dv.day}</span>${dv.label}<span class="badge ${c.role==='leader'?'b-lead':'b-foll'}" style="margin-left:3px">${c.role}</span>${c.heat?` H${c.heat}`:''}</span>`:''}).join('')}</div>`:''}
+    </div>`;
+  }).join('');
+  dancers.forEach(d=>{if(editingId===d.id)(d.competitions||[]).forEach((c,ci)=>{const sel=document.getElementById(`ecd-${d.id}-${ci}`);if(sel)buildDivSelect(sel,c.div);});});
+}
+
+// ── SCHEDULE PANEL ────────────────────────────────────────────────────────────
+function buildSchedulePanel(){
+  const isAdmin=currentRole==='admin';
+  const list=document.getElementById('sched-list');list.innerHTML='';
+  const days={};
+  Object.entries(DIVISIONS).forEach(([k,v])=>{if(!days[v.day])days[v.day]=[];days[v.day].push({k,v});});
+  Object.entries(days).forEach(([day,items])=>{
+    const dc=document.createElement('div');dc.className='sched-day';
+    dc.innerHTML=`<div class="sched-day-label"><span class="badge ${items[0].v.badge}">${day}</span></div>`;
+    items.forEach(({k,v})=>{
+      const card=document.createElement('div');card.className='sched-div-card';
+      card.innerHTML=`<div class="sched-div-head"><div class="sched-div-name">${v.label}</div>
+        <div class="sched-div-cfg"><input type="number" min="1" value="${divMaxHeats[k]||''}" placeholder="∞"
+          ${isAdmin?`onchange="saveMaxHeat('${k}',this.value)"`:'disabled'}/><span>max heats</span></div></div>
+        <div class="sched-rounds">${v.rounds.map(r=>`<div class="sched-round-row">
+          <div><div class="sched-round-name">${r.round}</div><div class="sched-round-marshal">Marshal by ${r.marshalBy}</div></div>
+          <div class="sched-round-time">${r.start} – ${r.end}</div></div>`).join('')}</div>`;
+      dc.appendChild(card);
+    });
+    list.appendChild(dc);
+  });
+}
+function saveMaxHeat(k,v){divMaxHeats[k]=v?parseInt(v):null;const d={};Object.entries(divMaxHeats).forEach(([k,v])=>{if(v)d[k]=v;});db.collection('meta').doc('maxHeats').set(d).catch(console.error);}
+
+// ── SCHEDULING LOGIC ──────────────────────────────────────────────────────────
+function toMins(t){const[h,m]=t.split(':').map(Number);return h*60+m;}
+function toTime(m){return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;}
+function heatWin(rs,hn){const s=toMins(rs)+(hn-1)*HEAT_DUR;return{s,e:s+HEAT_DUR};}
+
+// Get the busy window for a dancer's comp in a given round
+function compBusyWindow(comp,round){
+  if((round.type==='prelim'||round.type==='semi')&&comp.heat){
+    const hw=heatWin(round.start,comp.heat);
+    return{s:toMins(round.marshalBy),e:hw.e+2};
+  }
+  return{s:toMins(round.marshalBy),e:toMins(round.end)};
+}
+
+// Check if dancer's ALL comps make them busy during [ws,we]
+function isDancerBusy(dancer,ws,we){
+  return(dancer.competitions||[]).some(c=>{
+    const div=DIVISIONS[c.div];if(!div)return false;
+    return div.rounds.some(r=>{const bw=compBusyWindow(c,r);return ws<bw.e&&we>bw.s;});
+  });
+}
+
+// Core: can recorder (with recComp) record target (tgtComp) during round?
+// Returns {s,e,note} window or null
+// NEW cross-division heat logic:
+//   If recorder is in a DIFFERENT division and that division runs an overlapping round,
+//   check if their heat ends at least CROSS_DIV_BUFFER heats worth of time (2*HEAT_DUR)
+//   before the target's heat starts, OR target's heat ends that far before recorder's heat.
+function getRecWin(recComp,tgtComp,round){
+  const isHR=round.type==='prelim'||round.type==='semi';
+
+  // --- Target's recording window ---
+  let ts,te;
+  if(isHR&&tgtComp.heat){const hw=heatWin(round.start,tgtComp.heat);ts=hw.s;te=hw.e;}
+  else{ts=toMins(round.marshalBy);te=toMins(round.end);}
+
+  // --- Same division cross-heat ---
+  if(recComp.div===tgtComp.div){
+    if(!isHR||!recComp.heat||!tgtComp.heat||recComp.heat===tgtComp.heat)return null;
+    const rh=heatWin(round.start,recComp.heat);
+    if(recComp.heat<tgtComp.heat&&rh.e+2<=ts)return{s:ts,e:te,note:`heat ${recComp.heat} done → records heat ${tgtComp.heat}`};
+    if(recComp.heat>tgtComp.heat&&te+2<=rh.s)return{s:ts,e:te,note:`records heat ${tgtComp.heat} before own heat ${recComp.heat}`};
+    return null;
+  }
+
+  // --- Cross-division ---
+  const recDiv=DIVISIONS[recComp.div];if(!recDiv)return{s:ts,e:te,note:''};
+
+  // Find any overlapping round in recorder's division
+  const overlappingRecRound=recDiv.rounds.find(rr=>{
+    const bw=compBusyWindow(recComp,rr);
+    return ts<bw.e&&te>bw.s;
+  });
+
+  if(!overlappingRecRound){
+    // Recorder has nothing going on — free to record
+    return{s:ts,e:te,note:''};
+  }
+
+  // There IS an overlap — check if heat timing gives enough gap
+  if(isHR&&recComp.heat&&tgtComp.heat&&
+     (overlappingRecRound.type==='prelim'||overlappingRecRound.type==='semi')){
+    const recHw=heatWin(overlappingRecRound.start,recComp.heat);
+    const bufferMins=CROSS_DIV_BUFFER*HEAT_DUR;
+    // Recorder finishes early enough before target starts
+    if(recHw.e+bufferMins<=ts){
+      return{s:ts,e:te,note:`${recComp.div.replace(/_/g,' ')} heat ${recComp.heat} done ${Math.round((ts-recHw.e)/HEAT_DUR)} heats before`};
+    }
+    // Target finishes early enough before recorder starts
+    if(te+bufferMins<=recHw.s){
+      return{s:ts,e:te,note:`records before ${recComp.div.replace(/_/g,' ')} heat ${recComp.heat}`};
+    }
+  }
+  return null;
+}
+
+async function generateAssignments(){
+  if(currentRole!=='admin'){alert('Only admins can generate assignments.');return;}
+  if(dancers.length<2){document.getElementById('output').innerHTML='<div class="warn-box">Add at least 2 dancers first.</div>';return;}
+  const results=[],noRecorder=[],noTasks=[];
+  const recBusy={};
+  function isBusy(name,s,e){return(recBusy[name]||[]).some(x=>s<x.e&&e>x.s);}
+  function markBusy(name,s,e){if(!recBusy[name])recBusy[name]=[];recBusy[name].push({s,e});}
+
+  dancers.forEach(tgt=>{
+    (tgt.competitions||[]).forEach(tgtC=>{
+      if(tgtC.needFilming!=='yes')return;
+      const div=DIVISIONS[tgtC.div];if(!div)return;
+      div.rounds.forEach(round=>{
+        const avail=[];
+        dancers.forEach(rec=>{
+          if(rec.id===tgt.id)return;
+          (rec.competitions||[]).forEach(recC=>{
+            if(recC.canFilm!=='yes')return;
+            const w=getRecWin(recC,tgtC,round);if(!w)return;
+            if(isDancerBusy(rec,w.s,w.e))return;
+            if(isBusy(rec.name,w.s,w.e))return;
+            avail.push({dancer:rec,comp:recC,win:w});
+          });
+        });
+        if(avail.length){
+          avail.sort((a,b)=>(recBusy[a.dancer.name]||[]).length-(recBusy[b.dancer.name]||[]).length);
+          const best=avail[0];
+          markBusy(best.dancer.name,best.win.s,best.win.e);
+          results.push({
+            recorder:best.dancer.name,recBib:best.dancer.bib||'',recRole:best.comp.role,
+            forDancer:tgt.name,forBib:tgt.bib||'',forRole:tgtC.role,
+            divLabel:div.label,day:div.day,badge:div.badge,round:round.round,
+            timeStr:`${toTime(best.win.s)}–${toTime(best.win.e)}`,
+            crossHeat:best.comp.div===tgtC.div,note:best.win.note
+          });
+        } else {
+          if(round.type!=='final') // don't flag finals as unassigned
+            noRecorder.push({name:tgt.name,bib:tgt.bib||'',divLabel:div.label,day:div.day,round:round.round});
+        }
+      });
+    });
+  });
+
+  const hasTask=new Set(results.map(r=>r.recorder));
+  dancers.forEach(d=>{
+    if((d.competitions||[]).some(c=>c.canFilm==='yes')&&!hasTask.has(d.name))
+      noTasks.push({name:d.name,bib:d.bib||''});
+  });
+
+  lastResults=[...results];savedAssignments=[...results];
+  setSyncStatus('syncing');
+  try{
+    await db.collection('meta').doc('assignments').set({results,noRecorder,noTasks,generatedAt:firebase.firestore.FieldValue.serverTimestamp(),generatedBy:currentUser?.uid||'admin'});
+    setSyncStatus('synced');
+  }catch(e){console.error(e);setSyncStatus('error');}
+  renderAssignmentsUI(results,noRecorder,noTasks);
+}
+
+function renderAssignmentsFromSaved(){
+  const assignedKeys=new Set(savedAssignments.map(r=>`${r.forDancer}|${r.divLabel}|${r.round}`));
+  const noRecorder=[],noTasks=[];
+  dancers.forEach(d=>{
+    (d.competitions||[]).forEach(c=>{
+      if(c.needFilming!=='yes')return;
+      const div=DIVISIONS[c.div];if(!div)return;
+      div.rounds.forEach(r=>{
+        if(r.type==='final')return; // skip finals from unassigned list
+        if(!assignedKeys.has(`${d.name}|${div.label}|${r.round}`))noRecorder.push({name:d.name,bib:d.bib||'',divLabel:div.label,day:div.day,round:r.round});
+      });
+    });
+  });
+  const hasTask=new Set(savedAssignments.map(r=>r.recorder));
+  dancers.forEach(d=>{if((d.competitions||[]).some(c=>c.canFilm==='yes')&&!hasTask.has(d.name))noTasks.push({name:d.name,bib:d.bib||''});});
+  renderAssignmentsUI(savedAssignments,noRecorder,noTasks);
+}
+
+function renderAssignmentsUI(results,noRecorder,noTasks){
+  const byRec={};results.forEach(r=>{if(!byRec[r.recorder])byRec[r.recorder]=[];byRec[r.recorder].push(r);});
+  const crossCount=results.filter(r=>r.crossHeat).length;
+  const totalUnassigned=noRecorder.length+noTasks.length;
+
+  let html=`<div class="stat-grid">
+    <div class="stat"><div class="stat-val">${results.length}</div><div class="stat-lbl">Assignments</div></div>
+    <div class="stat"><div class="stat-val green">${Object.keys(byRec).length}</div><div class="stat-lbl">Recorders</div></div>
+    <div class="stat"><div class="stat-val teal">${crossCount}</div><div class="stat-lbl">Cross-heat</div></div>
+    <div class="stat"><div class="stat-val ${noRecorder.length?'red':'green'}">${noRecorder.length}</div><div class="stat-lbl">Unfilmed</div></div>
+  </div>`;
+
+  if(results.length) html+=`<button class="btn-full export" style="margin-bottom:12px" onclick="exportExcel()">↓ Export to Excel</button>`;
+
+  // ── Unassigned card — collapsible, full width, above recorders ──
+  const needsCollapse=totalUnassigned>3;
+  html+=`<div class="ua-card" id="ua-card-wrap">
+    <div class="ua-head">
+      <div class="ua-head-left">
+        <div class="ua-title">⚠ Unassigned</div>
+        <div class="ua-sub">${noRecorder.length} unfilmed · ${noTasks.length} idle</div>
+      </div>
+      ${needsCollapse?`<button class="ua-expand-btn" id="ua-expand-btn" onclick="toggleUACard()">Expand ↓</button>`:''}
+    </div>
+    <div class="ua-body ${needsCollapse?'collapsed':''}" id="ua-body">`;
+
+  if(noRecorder.length){
+    html+=`<div class="ua-section">No recorder assigned</div>`;
+    noRecorder.forEach(u=>{
+      const uid=dancers.find(d=>d.name===u.name)?.id||'';
+      const uEnc=encodeURIComponent(JSON.stringify(u));
+      html+=`<div class="ua-item">
+        <div class="ua-item-left">
+          <div class="ua-name"><span class="name-link" onclick="openPopup('${uid}')">${esc(u.name)}</span>${u.bib?` <span style="font-size:10px;color:var(--text3)">#${esc(u.bib)}</span>`:''}</div>
+          <div class="ua-detail">${u.divLabel}</div><div class="ua-detail">${u.day} · ${u.round}</div>
+        </div>
+        <div class="ua-item-actions">
+          <div class="ua-tag">no rec</div>
+          ${currentRole==='admin'?`<button class="btn-assign" onclick="openManualAssignById('${esc(u.name)}','${esc(u.divLabel)}','${esc(u.round)}','${esc(u.day)}','${esc(u.bib||'')}')">+ Assign</button>`:''}
+        </div>
+      </div>`;
+    });
+  }
+  if(noTasks.length){
+    html+=`<div class="ua-section">No filming tasks</div>`;
+    noTasks.forEach(u=>{
+      const uid=dancers.find(d=>d.name===u.name)?.id||'';
+      html+=`<div class="ua-item"><div>
+        <div class="ua-name"><span class="name-link" onclick="openPopup('${uid}')">${esc(u.name)}</span>${u.bib?` <span style="font-size:10px;color:var(--text3)">#${esc(u.bib)}</span>`:''}</div>
+        <div class="ua-detail">available but unassigned</div>
+      </div><div class="ua-tag">idle</div></div>`;
+    });
+  }
+  if(!noRecorder.length&&!noTasks.length){
+    html+=`<div style="padding:14px;font-size:12px;color:var(--accent);text-align:center">✓ All covered</div>`;
+  }
+  html+=`</div></div>`;
+
+  // ── Recorder list ──
+  html+=`<div class="section-lbl" style="margin-bottom:10px">By recorder</div>`;
+  if(!Object.keys(byRec).length) html+=`<div class="empty">No assignments yet.</div>`;
+  for(const[rec,tasks] of Object.entries(byRec)){
+    tasks.sort((a,b)=>a.timeStr.localeCompare(b.timeStr));
+    const ini=rec.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const bib=tasks[0]?.recBib?` · #${tasks[0].recBib}`:'';
+    const rid=dancers.find(d=>d.name===rec)?.id||'';
+    html+=`<div class="recorder-card"><div class="recorder-head">
+      <div class="r-avatar" style="cursor:pointer" onclick="openPopup('${rid}')">${ini}</div>
+      <div><div class="r-name"><span class="name-link" onclick="openPopup('${rid}')">${esc(rec)}</span><span style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${bib}</span></div>
+      <div class="r-meta">${tasks.length} task${tasks.length>1?'s':''}</div></div></div>`;
+    tasks.forEach(t=>{
+      const fid=dancers.find(d=>d.name===t.forDancer)?.id||'';
+      html+=`<div class="assign-row">
+        <div class="assign-top">
+          <div class="assign-for"><span class="name-link" onclick="openPopup('${fid}')">${esc(t.forDancer)}</span>${t.forBib?` <span class="assign-bib">#${esc(t.forBib)}</span>`:''}</div>
+          <div class="assign-time">${t.timeStr}</div>
+        </div>
+        <div class="assign-badges">
+          <span class="badge ${t.badge}">${t.day}</span>
+          <span class="badge b-div">${t.divLabel} — ${t.round}</span>
+          <span class="badge ${t.forRole==='leader'?'b-lead':'b-foll'}">${t.forRole}</span>
+          ${t.crossHeat?`<span class="badge b-cross">cross-heat</span>`:''}
+        </div>
+        ${t.note?`<div class="assign-note">${t.note}</div>`:''}
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+
+  document.getElementById('output').innerHTML=html;
+  setTimeout(()=>_syncHeight(currentTabIndex),80);
+}
+
+function toggleUACard(){
+  const body=document.getElementById('ua-body');
+  const btn=document.getElementById('ua-expand-btn');
+  if(!body||!btn)return;
+  const collapsed=body.classList.contains('collapsed');
+  body.classList.toggle('collapsed',!collapsed);
+  btn.textContent=collapsed?'Collapse ↑':'Expand ↓';
+  setTimeout(()=>_syncHeight(currentTabIndex),50);
+}
+
+// ── EXCEL EXPORT ──────────────────────────────────────────────────────────────
+function exportExcel(){
+  if(!lastResults.length)return;
+  const wb=XLSX.utils.book_new();
+  const byRec={};lastResults.forEach(r=>{if(!byRec[r.recorder])byRec[r.recorder]=[];byRec[r.recorder].push(r);});
+  const r1=[['Recorder','Rec Bib','Recording For','For Bib','For Role','Division','Day','Round','Time','Cross-Heat','Notes']];
+  Object.values(byRec).forEach(ts=>{ts.sort((a,b)=>a.timeStr.localeCompare(b.timeStr));ts.forEach(t=>r1.push([t.recorder,t.recBib,t.forDancer,t.forBib,t.forRole,t.divLabel,t.day,t.round,t.timeStr,t.crossHeat?'Yes':'No',t.note||'']));});
+  const ws1=XLSX.utils.aoa_to_sheet(r1);ws1['!cols']=[{wch:18},{wch:10},{wch:18},{wch:10},{wch:10},{wch:26},{wch:12},{wch:14},{wch:14},{wch:11},{wch:30}];
+  XLSX.utils.book_append_sheet(wb,ws1,'Assignments');
+  const r2=[['Name','Bib','Division','Day','Role','Heat','Need Filming','Can Film']];
+  dancers.forEach(d=>(d.competitions||[]).forEach(c=>{const dv=DIVISIONS[c.div];if(dv)r2.push([d.name,d.bib||'',dv.label,dv.day,c.role,c.heat||'',c.needFilming,c.canFilm]);}));
+  const ws2=XLSX.utils.aoa_to_sheet(r2);ws2['!cols']=[{wch:18},{wch:10},{wch:26},{wch:12},{wch:10},{wch:8},{wch:14},{wch:10}];
+  XLSX.utils.book_append_sheet(wb,ws2,'Dancers');
+  XLSX.writeFile(wb,'AWCSO_2026_Video_Assignments.xlsx');
+}
+
+function openResultsPopup(){
+  const panel=document.getElementById('panel-schedule');
+  const container=document.getElementById('swipe-container');
+  // Ensure the container is tall enough to show the popup (at least 80vh)
+  const minH=Math.round(window.innerHeight*0.82);
+  if(container&&parseInt(container.style.height||0)<minH){
+    container.style.height=minH+'px';
+  }
+  document.getElementById('results-popup').classList.remove('hidden');
+}
+function closeResultsPopup(e){
+  if(e.target===document.getElementById('results-popup')) closeResultsPopupDirect();
+}
+function closeResultsPopupDirect(){
+  document.getElementById('results-popup').classList.add('hidden');
+  // Restore natural height
+  setTimeout(()=>_syncHeight(currentTabIndex),50);
+}
+
+// ── MANUAL ASSIGN ─────────────────────────────────────────────────────────────
+let _maTarget=null;
+
+// Called from HTML with individual safe string args
+function openManualAssignById(name,divLabel,round,day,bib){
+  openManualAssign({name,divLabel,round,day,bib});
+}
+
+function openManualAssign(u){
+  _maTarget=u;
+  document.getElementById('ma-title').textContent=`Assign recorder for ${u.name}`;
+  document.getElementById('ma-subtitle').textContent=`${u.divLabel} · ${u.day} · ${u.round}`;
+
+  // Find the target dancer's full record
+  const tgtDancer=dancers.find(d=>d.name===u.name);
+  if(!tgtDancer){return;}
+
+  // Find which division+round this is about
+  const divKey=Object.keys(DIVISIONS).find(k=>DIVISIONS[k].label===u.divLabel);
+  const div=DIVISIONS[divKey];
+  if(!div)return;
+  const round=div.rounds.find(r=>r.round===u.round);
+  if(!round)return;
+
+  // Get the target's competition entry for this div
+  const tgtComp=(tgtDancer.competitions||[]).find(c=>c.div===divKey);
+
+  // Compute target's actual time window for this round+heat
+  const isHR=round.type==='prelim'||round.type==='semi';
+  let tgtStart,tgtEnd;
+  if(isHR&&tgtComp?.heat){
+    const hw=heatWin(round.start,tgtComp.heat);
+    tgtStart=toMins(round.marshalBy);
+    tgtEnd=hw.e+2;
+  } else {
+    tgtStart=toMins(round.marshalBy);
+    tgtEnd=toMins(round.end);
+  }
+
+  // Returns clash reason string if recComp clashes with the target slot, or null if clear
+  function clashReason(rc){
+    const rcDiv=DIVISIONS[rc.div];
+    if(!rcDiv) return null;
+    // Same division — check heat proximity directly (most important check)
+    if(rc.div===divKey){
+      if(isHR&&rc.heat&&tgtComp?.heat){
+        const diff=Math.abs(Number(rc.heat)-Number(tgtComp.heat));
+        if(diff===0) return 'same division & same heat';
+        if(diff===1) return 'same division, adjacent heat (±1)';
+        // Heats 2+ apart in same div — check actual time window
+        const recHw=heatWin(round.start,rc.heat);
+        const bufMins=CROSS_DIV_BUFFER*HEAT_DUR;
+        if(!(recHw.e+bufMins<=tgtStart||tgtEnd+bufMins<=recHw.s)){
+          return 'same division, heat timing overlap';
+        }
+        return null; // heats far enough apart
+      }
+      // Same div, no heat info — flag as caution
+      return 'same division (no heat info)';
+    }
+    // Different division — check actual time window overlap across all rounds
+    for(const rr of rcDiv.rounds){
+      const bw=compBusyWindow(rc,rr);
+      if(tgtStart<bw.e&&tgtEnd>bw.s){
+        return `time clash — ${rcDiv.label} (${rcDiv.day})`;
+      }
+    }
+    return null; // no clash
+  }
+
+  const safe=[], warned=[];
+
+  dancers.forEach(rec=>{
+    if(rec.name===u.name) return;
+    const recComps=(rec.competitions||[]).filter(rc=>rc.canFilm==='yes');
+    if(!recComps.length) return;
+    if(!tgtComp) return;
+
+    // Check EVERY canFilm comp for clashes
+    // A recorder is safe only if ALL their comps pass (or only non-clashing comps exist)
+    // and at least one comp gives a valid recording window
+    let worstClash=null;
+    let bestSafeComp=null;
+    let bestSafeNote='';
+
+    // Priority: same-div/same-heat clash overrides everything
+    for(const rc of recComps){
+      const clash=clashReason(rc);
+      if(clash){
+        // Rank: same-heat > adjacent-heat > other clashes
+        if(!worstClash){
+          worstClash=clash;
+        } else if(clash.includes('same heat')&&!worstClash.includes('same heat')){
+          worstClash=clash; // escalate to more severe
+        }
+      } else {
+        // No clash from this comp — check if it gives a valid recording window
+        const win=getRecWin(rc,tgtComp,round);
+        if(win&&!bestSafeComp){bestSafeComp=rc;bestSafeNote=win.note||'';}
+      }
+    }
+
+    const rcFirst=recComps[0];
+    const rcDivObj=DIVISIONS[rcFirst.div];
+    const entry={name:rec.name,bib:rec.bib||'',recComp:bestSafeComp||rcFirst,
+      recDivLabel:rcDivObj?.label||rcFirst.div,note:bestSafeNote};
+
+    if(worstClash){
+      // Has at least one clashing comp — always warn, regardless of other comps
+      warned.push({...entry,warnReason:worstClash});
+    } else if(bestSafeComp){
+      // No clashes at all AND has a valid recording window
+      safe.push(entry);
+    }
+    // If no clash but also no valid window (e.g. different day entirely) — omit from both
+  });
+
+  const safeNames=new Set(safe.map(e=>e.name));
+  const warnDedupe=warned.filter(w=>!safeNames.has(w.name));
+  const safeDedupe=safe;
+
+  // Build modal body
+  const existingRec=savedAssignments.find(a=>a.forDancer===u.name&&a.divLabel===u.divLabel&&a.round===u.round);
+
+  let body=`<div class="ma-comp-block">
+    <div class="ma-comp-title">${u.divLabel} — ${u.round} · ${u.day}</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:8px">Select a recorder for <strong>${esc(u.name)}</strong>${u.bib?` (#${esc(u.bib)})`:''}:</div>
+    <div class="ma-recorder-row">
+      <label class="ma-recorder-label" style="white-space:nowrap">Assign to</label>
+      <select class="ma-recorder-select" id="ma-select-0">
+        <option value="">— choose recorder —</option>`;
+
+  if(safeDedupe.length){
+    body+=`<optgroup label="✓ Available">`;
+    safeDedupe.forEach(e=>{
+      const sel=existingRec&&existingRec.recorder===e.name?'selected':'';
+      const note=e.note?` · ${e.note}`:'';
+      body+=`<option value="${esc(e.name)}" ${sel}>${esc(e.name)}${e.bib?' #'+esc(e.bib):''}${note}</option>`;
+    });
+    body+=`</optgroup>`;
+  }
+
+  if(warnDedupe.length){
+    body+=`<optgroup label="⚠ Conflict — use with caution">`;
+    warnDedupe.forEach(e=>{
+      const sel=existingRec&&existingRec.recorder===e.name?'selected':'';
+      body+=`<option value="${esc(e.name)}" data-warn="1" ${sel}>⚠ ${esc(e.name)}${e.bib?' #'+esc(e.bib):''} — ${e.warnReason}</option>`;
+    });
+    body+=`</optgroup>`;
+  }
+
+  if(!safeDedupe.length&&!warnDedupe.length){
+    body+=`<option disabled>No eligible recorders found</option>`;
+  }
+
+  body+=`</select></div>`;
+
+  // Warning banner shown when a warned option is selected
+  body+=`<div id="ma-warn-banner" style="display:none;margin-top:8px;padding:7px 10px;background:rgba(240,180,40,0.1);border:0.5px solid rgba(240,180,40,0.35);border-radius:6px;font-size:11px;color:var(--amber);font-family:'DM Mono',monospace"></div>`;
+
+  if(!safeDedupe.length&&warnDedupe.length){
+    body+=`<div style="font-size:11px;color:var(--amber);margin-top:8px">⚠ Only conflicted recorders available. Assignments may be difficult to fulfil.</div>`;
+  }
+  if(!safeDedupe.length&&!warnDedupe.length){
+    body+=`<div style="font-size:11px;color:var(--red);margin-top:8px">No dancers with canFilm=yes found for this round.</div>`;
+  }
+  body+=`</div>`;
+
+  document.getElementById('ma-body').innerHTML=body;
+  document.getElementById('ma-overlay').classList.remove('hidden');
+
+  // Wire up warning banner on select change
+  const sel=document.getElementById('ma-select-0');
+  if(sel){
+    const banner=document.getElementById('ma-warn-banner');
+    const updateBanner=()=>{
+      const opt=sel.options[sel.selectedIndex];
+      if(opt&&opt.dataset.warn==='1'){
+        const reason=opt.textContent.replace(/^⚠\s*/,'').split(' — ').slice(1).join(' — ')||'schedule conflict';
+        banner.textContent=`⚠ ${reason} — manual oversight required.`;
+        banner.style.display='block';
+      } else {
+        banner.style.display='none';
+      }
+    };
+    sel.addEventListener('change',updateBanner);
+    updateBanner(); // run once in case pre-selected is a warned option
+  }
+}
+
+function closeMAModal(e){
+  if(e.target===document.getElementById('ma-overlay'))closeMAModalDirect();
+}
+function closeMAModalDirect(){
+  document.getElementById('ma-overlay').classList.add('hidden');
+  _maTarget=null;
+}
+
+async function saveManualAssign(){
+  if(!_maTarget)return;
+  const sel=document.getElementById('ma-select-0');
+  const recorderName=sel?.value;
+  if(!recorderName){alert('Please select a recorder.');return;}
+
+  const u=_maTarget;
+  const divKey=Object.keys(DIVISIONS).find(k=>DIVISIONS[k].label===u.divLabel);
+  const div=DIVISIONS[divKey];
+  const round=div?.rounds.find(r=>r.round===u.round);
+  const recDancer=dancers.find(d=>d.name===recorderName);
+  const tgtDancer=dancers.find(d=>d.name===u.name);
+  if(!recDancer||!tgtDancer||!round)return;
+
+  const tgtComp=(tgtDancer.competitions||[]).find(c=>c.div===divKey);
+  // Try to find a recComp with a valid window; fall back to any comp in same div, then first comp
+  let recComp=(recDancer.competitions||[]).find(c=>getRecWin(c,tgtComp,round));
+  if(!recComp) recComp=(recDancer.competitions||[]).find(c=>c.div===divKey);
+  if(!recComp) recComp=(recDancer.competitions||[])[0];
+
+  // Check if this is a warned (conflicted) assignment
+  const selectedOpt=document.getElementById('ma-select-0')?.options[document.getElementById('ma-select-0')?.selectedIndex];
+  const isWarned=selectedOpt?.dataset?.warn==='1';
+
+  // Build the new assignment entry
+  const isHR=round.type==='prelim'||round.type==='semi';
+  let ts,te;
+  if(isHR&&tgtComp?.heat){const hw=heatWin(round.start,tgtComp.heat);ts=hw.s;te=hw.e;}
+  else{ts=toMins(round.marshalBy);te=toMins(round.end);}
+  const win=recComp?getRecWin(recComp,tgtComp,round):null;
+
+  const newAssignment={
+    recorder:recorderName,recBib:recDancer.bib||'',
+    forDancer:u.name,forBib:u.bib||'',forRole:tgtComp?.role||'',
+    divLabel:u.divLabel,day:u.day,round:u.round,
+    badge:div?.badge||'',
+    timeStr:toTime(ts)+' – '+toTime(te),
+    crossHeat:recComp?.div===divKey,
+    note:(win?.note||(isWarned?'⚠ conflict — manually assigned':'manually assigned'))
+  };
+
+  // Merge into savedAssignments — remove any existing assignment for this slot
+  const filtered=savedAssignments.filter(a=>
+    !(a.forDancer===u.name&&a.divLabel===u.divLabel&&a.round===u.round)
+  );
+  const merged=[...filtered,newAssignment];
+
+  setSyncStatus('syncing');
+  try{
+    await db.collection('meta').doc('assignments').set({
+      results:merged,
+      generatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+      generatedBy:currentUser?.uid||'manual'
+    });
+    setSyncStatus('synced');
+    closeMAModalDirect();
+  }catch(e){console.error(e);setSyncStatus('error');}
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ── FINGER-TRACKING DRAG SWIPE ────────────────────────────────────────────────
+(function(){
+  const SNAP_THRESHOLD=50; // px to commit
+  const RESISTANCE=0.3;    // edge rubber-band factor
+  let dragging=false,dirLocked=false,isHoriz=false;
+  let txStart=0,tyStart=0;
+  let startTrackPct=0;
+
+  function trackPctFromIdx(idx){return-(idx*25);}
+
+  function setRaw(pct){
+    const t=document.getElementById('swipe-track');
+    if(t){t.style.transition='none';t.style.transform=`translateX(${pct}%)`;}
+  }
+
+  function isModalOpen(){
+    const lm=document.getElementById('login-modal');
+    const dp=document.getElementById('dancer-popup');
+    return (lm&&!lm.classList.contains('hidden'))||(dp&&!dp.classList.contains('hidden'));
+  }
+
+  // Track whether the swipe originated from the home panel
+  let swipeFromHome=false;
+
+  document.addEventListener('touchstart',e=>{
+    if(isModalOpen())return;
+    // Block on interactive elements everywhere
+    if(e.target.closest('input,select,textarea,button,a,.popup,.modal'))return;
+    const t=e.touches[0];
+    txStart=t.clientX;tyStart=t.clientY;
+    dragging=false;dirLocked=false;isHoriz=false;
+    swipeFromHome=!!e.target.closest('#panel-home');
+    if(!swipeFromHome) startTrackPct=trackPctFromIdx(currentTabIndex);
+  },{passive:true});
+
+  document.addEventListener('touchmove',e=>{
+    if(isModalOpen()||isAnimating)return;
+    if(e.target.closest('input,select,textarea,button,a,.popup,.modal'))return;
+    if(!e.touches.length)return;
+    const t=e.touches[0];
+    const dx=t.clientX-txStart;
+    const dy=t.clientY-tyStart;
+
+    if(!dirLocked){
+      if(Math.abs(dx)<5&&Math.abs(dy)<5)return;
+      isHoriz=Math.abs(dx)>Math.abs(dy)*0.9;
+      dirLocked=true;
+      if(isHoriz) dragging=true;
+    }
+    if(!isHoriz||!dragging)return;
+
+    if(swipeFromHome){
+      // Only respond to left swipes (going forward)
+      if(dx>=0) return;
+      const W=window.innerWidth;
+      const clampedDx=Math.max(dx,-W); // don't go past full screen width
+      // Slide home panel left with finger
+      const homeEl=document.getElementById('panel-home');
+      if(homeEl) homeEl.style.transform=`translateX(${clampedDx}px)`;
+      // Simultaneously show the track and slide it in from right
+      const track=document.getElementById('swipe-track');
+      const container=document.getElementById('swipe-container');
+      if(container&&container.style.display==='none'){
+        // First move: initialise track at idx=1 positioned off-screen right, then reveal
+        container.style.display='block';
+        container.style.opacity='0';
+        if(track){track.style.transition='none';track.style.transform=`translateX(${getTrackX(1)}%)`;}
+        // Force reflow before making visible
+        container.offsetHeight;
+        container.style.opacity='';
+      }
+      // Move track: starts from 100% right of viewport offset, follows finger proportionally
+      const trackDx=(dx/W)*100/4; // px to track-% (track is 4x wide)
+      const trackTarget=getTrackX(1)+(-trackDx); // starts further right, comes left
+      if(track){track.style.transition='none';track.style.transform=`translateX(${Math.min(trackTarget,0)}%)`;}
+      return;
+    }
+
+    // Track panels: move track with finger
+    const W=window.innerWidth;
+    let pct=(dx/W)*100/4;
+    if((currentTabIndex===0&&dx>0)||(currentTabIndex===TAB_ORDER_NAV.length-1&&dx<0)){
+      pct*=RESISTANCE;
+    }
+    setRaw(startTrackPct+pct);
+  },{passive:true});
+
+  document.addEventListener('touchend',e=>{
+    const dx=e.changedTouches[0].clientX-txStart;
+    const commit=Math.abs(dx)>SNAP_THRESHOLD;
+
+    // Handle home swipe first
+    if(swipeFromHome){
+      swipeFromHome=false;dragging=false;
+      const homeEl=document.getElementById('panel-home');
+      const track=document.getElementById('swipe-track');
+      const container=document.getElementById('swipe-container');
+
+      if(!isAnimating&&commit&&dx<0){
+        // Commit: animate home out left, track snaps to idx=1
+        isAnimating=true;
+        if(homeEl){
+          homeEl.style.transition='transform 0.30s cubic-bezier(0.4,0,0.2,1)';
+          homeEl.style.transform='translateX(-100%)';
+        }
+        if(track){
+          track.style.transition='transform 0.30s cubic-bezier(0.4,0,0.2,1)';
+          track.style.transform=`translateX(${getTrackX(1)}%)`;
+        }
+        const finish=()=>{
+          isAnimating=false;
+          if(homeEl){homeEl.style.transition='';homeEl.style.transform='';homeEl.style.display='none';}
+          currentTabIndex=1;
+          const nextTab=TAB_ORDER_NAV[1];
+          TAB_ORDER_NAV.forEach(t=>document.getElementById('tab-'+t).classList.toggle('active',t===nextTab));
+          _syncHeight(1);_watchPanelHeight(1);
+          _afterSwitch(nextTab);
+        };
+        if(track) track.addEventListener('transitionend',finish,{once:true});
+        else finish();
+        setTimeout(()=>{if(isAnimating)finish();},380);
+      } else {
+        // Cancel: spring home back, hide track again
+        if(homeEl){
+          homeEl.style.transition='transform 0.25s cubic-bezier(0.4,0,0.2,1)';
+          homeEl.style.transform='translateX(0)';
+          homeEl.addEventListener('transitionend',()=>{homeEl.style.transition='';},{once:true});
+        }
+        if(container) container.style.display='none';
+        if(track){track.style.transition='none';track.style.transform=`translateX(${getTrackX(1)}%)`;}
+      }
+      return;
+    }
+
+    if(!dragging){dragging=false;return;}
+    dragging=false;
+    if(!isHoriz||isAnimating) return;
+
+    if(commit&&dx<0&&currentTabIndex<TAB_ORDER_NAV.length-1){
+      const nextIdx=currentTabIndex+1;
+      const nextTab=TAB_ORDER_NAV[nextIdx];
+      setTrackAnimated(nextIdx,()=>{
+        currentTabIndex=nextIdx;
+        TAB_ORDER_NAV.forEach(t=>document.getElementById('tab-'+t).classList.toggle('active',t===nextTab));
+        _afterSwitch(nextTab);
+      });
+    } else if(commit&&dx>0&&currentTabIndex>0){
+      const prevIdx=currentTabIndex-1;
+      const prevTab=TAB_ORDER_NAV[prevIdx];
+      setTrackAnimated(prevIdx,()=>{
+        currentTabIndex=prevIdx;
+        TAB_ORDER_NAV.forEach(t=>document.getElementById('tab-'+t).classList.toggle('active',t===prevTab));
+        // If going back to idx 0 and dancer has linked profile, show home
+        const linked=(currentRole==='dancer'&&currentUser?.uid)?dancers.find(d=>d.linkedUid===currentUser.uid):null;
+        if(prevIdx===0&&linked){
+          document.getElementById('swipe-container').style.display='none';
+          document.getElementById('panel-home').style.display='block';
+          renderHomeProfile(linked);
+        } else {
+          _afterSwitch(prevTab);
+        }
+      });
+    } else {
+      setTrackAnimated(currentTabIndex,null);
+    }
+  },{passive:true});
+
+  // ── Swipe hint ──────────────────────────────────────────────────────────────
+  window._showSwipeHint=function(){
+    if(window.__swipeHintDone)return;
+    window.__swipeHintDone=true;
+
+    const wrap=document.createElement('div');
+    wrap.style.cssText='position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:9999;pointer-events:none;background:rgba(0,0,0,0.01)';
+
+    const box=document.createElement('div');
+    box.style.cssText=[
+      'background:rgba(10,11,13,0.97)',
+      'border:2px solid rgba(200,240,110,0.65)',
+      'color:#c8f06e',
+      'font-size:19px',
+      'font-family:"DM Sans",sans-serif',
+      'font-weight:500',
+      'padding:22px 38px',
+      'border-radius:18px',
+      'opacity:0',
+      'transform:scale(0.82)',
+      'transition:opacity 0.28s ease,transform 0.28s ease',
+      'text-align:center',
+      'white-space:nowrap',
+      'box-shadow:0 20px 60px rgba(0,0,0,0.7)',
+    ].join(';');
+    box.innerHTML='👈 &nbsp; Swipe to switch tabs &nbsp; 👉';
+
+    wrap.appendChild(box);
+    document.body.appendChild(wrap);
+
+    // Double rAF ensures transition fires on mobile
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      box.style.opacity='1';
+      box.style.transform='scale(1)';
+    }));
+
+    setTimeout(()=>{
+      box.style.opacity='0';
+      box.style.transform='scale(0.88)';
+      setTimeout(()=>wrap.remove(),320);
+    },2600);
+  };
+})();
+</script>
+
+<!-- Manual assign modal -->
+<div class="ma-overlay hidden" id="ma-overlay" onclick="closeMAModal(event)">
+  <div class="ma-modal" onclick="event.stopPropagation()">
+    <div class="ma-head">
+      <div>
+        <div style="font-size:14px;font-weight:500" id="ma-title">Assign recorder</div>
+        <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace" id="ma-subtitle"></div>
+      </div>
+      <button class="popup-close" onclick="closeMAModalDirect()">×</button>
+    </div>
+    <div class="ma-body" id="ma-body"></div>
+    <div class="ma-footer">
+      <button class="btn-full" style="background:transparent;border:0.5px solid var(--border2);color:var(--text2)" onclick="closeMAModalDirect()">Cancel</button>
+      <button class="btn-full" onclick="saveManualAssign()">Save assignments</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
