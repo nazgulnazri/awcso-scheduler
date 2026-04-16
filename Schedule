@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AO26 Live Schedule</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px; color: #333; }
+        .container { max-width: 900px; margin: auto; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }
+        .header { background: #1a1a1a; color: white; padding: 15px; text-align: center; }
+        .status-bar { background: #e9ecef; padding: 10px; text-align: center; font-size: 0.9em; border-bottom: 1px solid #ddd; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background-color: #f8f9fa; text-transform: uppercase; font-size: 0.75em; letter-spacing: 1px; color: #666; padding: 12px; border-bottom: 2px solid #dee2e6; }
+        td { padding: 15px; border-bottom: 1px solid #eee; font-size: 0.85em; vertical-align: top; }
+        .time-col { font-weight: bold; width: 100px; color: #d9534f; }
+        .active-row { background-color: #fff9db; }
+        .no-activity { padding: 40px; text-align: center; color: #999; }
+        .foyer { color: #555; font-style: italic; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h2 id="current-date">AO26 LIVE SCHEDULE</h2>
+    </div>
+    <div class="status-bar" id="current-time-display"></div>
+    
+    <table id="schedule-table">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Foyer</th>
+                <th>Ballroom 1 & 2</th>
+                <th>Napier / Read</th>
+                <th>Spottiswoode</th>
+            </tr>
+        </thead>
+        <tbody id="schedule-body">
+            </tbody>
+    </table>
+    <div id="empty-state" class="no-activity" style="display:none;">No ongoing activities at this time.</div>
+</div>
+
+<script>
+    [span_0](start_span)[span_1](start_span)[span_2](start_span)// Data extracted from the AO26 PDF[span_0](end_span)[span_1](end_span)[span_2](end_span)
+    const schedule = [
+        {
+            date: "2026-04-16",
+            events: [
+                {start: "15:30", end: "16:30", foyer: "", ballroom: "GHOST HOUR (Tech Crew Only)", napier: "", spottiswoode: ""},
+                {start: "16:30", end: "18:00", foyer: "", ballroom: "Private Workshop: Sean & Alyssa", napier: "CLASSES / PRIVATE", spottiswoode: ""},
+                {start: "18:00", end: "19:30", foyer: "", ballroom: "Private Workshop: Maxence & Virginie", napier: "", spottiswoode: ""},
+                {start: "19:00", end: "21:30", foyer: "Registration Desk is open", ballroom: "", napier: "", spottiswoode: ""},
+                {start: "20:15", end: "21:30", foyer: "", ballroom: "Novice/Intermediate Workshop (Sesan & Alyssa)", napier: "", spottiswoode: "Advanced/Allstar Workshop (Jakub & Emeline)"},
+                {start: "21:30", end: "22:45", foyer: "", ballroom: "SOCIAL DANCING/PARTY (Find a Strictly Partner)", napier: "", spottiswoode: "Find a Strictly Partner / DJ Workshop"},
+                {start: "22:45", end: "23:00", foyer: "", ballroom: "Pro Staff Introduction", napier: "", spottiswoode: ""},
+                {start: "23:00", end: "04:00", foyer: "", ballroom: "SOCIAL DANCING/PARTY", napier: "", spottiswoode: ""}
+            ]
+        },
+        {
+            date: "2026-04-17",
+            events: [
+                {start: "11:30", end: "12:00", foyer: "Registration Open", ballroom: "", napier: "", spottiswoode: ""},
+                {start: "12:46", end: "14:00", foyer: "", ballroom: "Level 2 (Ben Mo & Aymeline)", napier: "Level 3 (Maxence) / Level 4 (Semion)", spottiswoode: "Level 1 (Brett & Joelle)"},
+                {start: "17:30", end: "19:30", foyer: "BUFFET DINNER (Pre-order only)", ballroom: "", napier: "", spottiswoode: ""},
+                {start: "19:50", end: "21:10", foyer: "", ballroom: "Competition Prelims", napier: "", spottiswoode: ""},
+                {start: "00:00", end: "06:00", foyer: "SUPPER", ballroom: "SOCIAL DANCING / Performances", napier: "", spottiswoode: ""}
+            ]
+        }
+        // Additional dates (18, 19 Apr) would follow the same pattern...
+    ];
+
+    function updateLiveSchedule() {
+        const now = new Date();
+        // TEST MODE: Uncomment below to simulate 16 April, 8:15 PM
+        // const now = new Date("2026-04-16T20:15:00");
+        
+        const dateStr = now.toISOString().split('T')[0];
+        const currentTime = now.getHours() * 60 + now.getMinutes();
+
+        document.getElementById('current-time-display').innerText = `Current Time: ${now.toLocaleString()}`;
+        
+        const dayData = schedule.find(d => d.date === dateStr);
+        const tbody = document.getElementById('schedule-body');
+        const emptyState = document.getElementById('empty-state');
+        tbody.innerHTML = '';
+
+        if (!dayData) {
+            emptyState.style.display = 'block';
+            return;
+        }
+
+        const activeEvents = dayData.events.filter(event => {
+            const [sH, sM] = event.start.split(':').map(Number);
+            const [eH, eM] = event.end.split(':').map(Number);
+            let start = sH * 60 + sM;
+            let end = eH * 60 + eM;
+            if (end < start) end += 1440; // Handle overnight events
+            return currentTime >= start && currentTime < end;
+        });
+
+        if (activeEvents.length === 0) {
+            emptyState.style.display = 'block';
+        } else {
+            emptyState.style.display = 'none';
+            activeEvents.forEach(ev => {
+                const row = `
+                    <tr class="active-row">
+                        <td class="time-col">${ev.start} - ${ev.end}</td>
+                        <td class="foyer">${ev.foyer}</td>
+                        <td>${ev.ballroom}</td>
+                        <td>${ev.napier}</td>
+                        <td>${ev.spottiswoode}</td>
+                    </tr>`;
+                tbody.innerHTML += row;
+            });
+        }
+    }
+
+    setInterval(updateLiveSchedule, 10000);
+    updateLiveSchedule();
+</script>
+
+</body>
+</html>
